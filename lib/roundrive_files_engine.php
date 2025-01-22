@@ -379,7 +379,7 @@ class roundrive_files_engine
         if (empty($attrib['id'])) {
             $attrib['id'] = 'filesearchbox';
         }
-        if ($attrib['type'] == 'search' && !$this->rc->output->browser->khtml) {
+        if (isset($attrib['type']) && $attrib['type'] == 'search' && !$this->rc->output->browser->khtml) {
             unset($attrib['type'], $attrib['results']);
         }
 
@@ -469,7 +469,7 @@ class roundrive_files_engine
      */
     protected function file_list_head($attrib, $a_show_cols)
     {
-        $skin_path = $_SESSION['skin_path'];
+        $skin_path = $this->plugin->local_skin_path();
 
         // check to see if we have some settings for sorting
         $sort_col   = $_SESSION['roundrive_sort_col'];
