@@ -1,26 +1,25 @@
 sabre/http
 ==========
 
-This library provides a toolkit to make working with the HTTP protocol easier.
+This library provides a toolkit to make working with the [HTTP protocol](https://tools.ietf.org/html/rfc2616) easier.
 
 Most PHP scripts run within a HTTP request but accessing information about the
-HTTP request is cumbersome at least, mainly do to superglobals and the CGI
-standard.
+HTTP request is cumbersome at least.
 
 There's bad practices, inconsistencies and confusion. This library is
 effectively a wrapper around the following PHP constructs:
 
 For Input:
 
-* `$_GET`
-* `$_POST`
-* `$_SERVER`
+* `$_GET`,
+* `$_POST`,
+* `$_SERVER`,
 * `php://input` or `$HTTP_RAW_POST_DATA`.
 
 For output:
 
-* `php://output` or `echo`.
-* `header()`
+* `php://output` or `echo`,
+* `header()`.
 
 What this library provides, is a `Request` object, and a `Response` object.
 
@@ -29,9 +28,11 @@ The objects are extendable and easily mockable.
 Build status
 ------------
 
-| branch | status |
-| ------ | ------ |
-| master | [![Build Status](https://travis-ci.org/fruux/sabre-http.png?branch=master)](https://travis-ci.org/fruux/sabre-http) |
+| branch | status                                                                                                        |
+|--------|---------------------------------------------------------------------------------------------------------------|
+| master | [![Build Status](https://travis-ci.org/sabre-io/http.svg?branch=master)](https://travis-ci.org/sabre-io/http) |
+| 4.2    | [![Build Status](https://travis-ci.org/sabre-io/http.svg?branch=4.2)](https://travis-ci.org/sabre-io/http)    |
+| 3.0    | [![Build Status](https://travis-ci.org/sabre-io/http.svg?branch=3.0)](https://travis-ci.org/sabre-io/http)    |
 
 Installation
 ------------
@@ -39,11 +40,10 @@ Installation
 Make sure you have [composer][1] installed. In your project directory, create,
 or edit a `composer.json` file, and make sure it contains something like this:
 
-
 ```json
 {
     "require" : {
-        "sabre/http" : "~2.0.0"
+        "sabre/http" : "~5.0.0"
     }
 }
 ```
@@ -53,18 +53,18 @@ After that, just hit `composer install` and you should be rolling.
 Quick history
 -------------
 
-This library came to existence in 2009, as a part of the [SabreDAV][2]
+This library came to existence in 2009, as a part of the [`sabre/dav`][2]
 project, which uses it heavily.
 
 It got split off into a separate library to make it easier to manage
-releases and hopefully giving it use outside of the scope of just SabreDAV.
+releases and hopefully giving it use outside of the scope of just `sabre/dav`.
 
 Although completely independently developed, this library has a LOT of
-overlap with [symfony's HttpFoundation][3].
+overlap with [Symfony's `HttpFoundation`][3].
 
 Said library does a lot more stuff and is significantly more popular,
 so if you are looking for something to fulfill this particular requirement,
-I'd recommend also considering [HttpFoundation][3].
+I'd recommend also considering [`HttpFoundation`][3].
 
 
 Getting started
@@ -84,7 +84,7 @@ $request = HTTP\Sapi::getRequest();
 This line should only happen once in your entire application. Everywhere else
 you should pass this request object around using dependency injection.
 
-You should always typehint on it's interface:
+You should always typehint on its interface:
 
 ```php
 function handleRequest(HTTP\RequestInterface $request) {
@@ -95,7 +95,6 @@ function handleRequest(HTTP\RequestInterface $request) {
 ```
 
 A response object you can just create as such:
-
 
 ```php
 use Sabre\HTTP;
@@ -120,29 +119,28 @@ HTTP\Sapi::sendResponse($response);
 This line should generally also appear once in your application (at the very
 end).
 
-
 Decorators
 ----------
 
-It may be useful to extend the Request and Response objects in your
+It may be useful to extend the `Request` and `Response` objects in your
 application, if you for example would like them to carry a bit more
 information about the current request.
 
-For instance, you may want to add an `isLoggedIn()` method to the Request
+For instance, you may want to add an `isLoggedIn` method to the Request
 object.
 
 Simply extending Request and Response may pose some problems:
 
-1. You may want to extend the objects with new behavior differently, in
-   different subsystems of your application.
-2. The `Sapi::getRequest` factory always returns a instance of
-   `Request` so you would have to override the factory method as well.
-3. By controlling the instantation and depend on specific `Request` and
+1. You may want to extend the objects with new behaviors differently, in
+   different subsystems of your application,
+2. The `Sapi::getRequest` factory always returns an instance of
+   `Request` so you would have to override the factory method as well,
+3. By controlling the instantiation and depend on specific `Request` and
    `Response` instances in your library or application, you make it harder to
    work with other applications which also use `sabre/http`.
 
 In short: it would be bad design. Instead, it's recommended to use the
-[decorator pattern][6] to add new behavior where you need it. sabre/http
+[decorator pattern][6] to add new behavior where you need it. `sabre/http`
 provides helper classes to quickly do this.
 
 Example:
@@ -164,7 +162,7 @@ class MyRequest extends HTTP\RequestDecorator {
 Our application assumes that the true `Request` object was instantiated
 somewhere else, by some other subsystem. This could simply be a call like
 `$request = Sapi::getRequest()` at the top of your application,
-but could also be somewhere in a unittest.
+but could also be somewhere in a unit test.
 
 All we know in the current subsystem, is that we received a `$request` and
 that it implements `Sabre\HTTP\RequestInterface`. To decorate this object,
@@ -185,8 +183,8 @@ This package also contains a simple wrapper around [cURL][4], which will allow
 you to write simple clients, using the `Request` and `Response` objects you're
 already familiar with.
 
-It's by no means a replacement for something like [guzzle][7], but it provides
-a simple and lightweight api for making the occasional API call.
+It's by no means a replacement for something like [Guzzle][7], but it provides
+a simple and lightweight API for making the occasional API call.
 
 ### Usage
 
@@ -202,7 +200,7 @@ $response = $client->send($request);
 echo $response->getBodyAsString();
 ```
 
-The client emits 3 event using [sabre/event][5]. `beforeRequest`,
+The client emits 3 event using [`sabre/event`][5]. `beforeRequest`,
 `afterRequest` and `error`.
 
 ```php
@@ -245,11 +243,11 @@ $client->on('error:401', function($request, $response, &$retry, $retryCount) {
 
 ### Asynchronous requests
 
-The Client also supports doing asynchronous requests. This is especially handy
+The `Client` also supports doing asynchronous requests. This is especially handy
 if you need to perform a number of requests, that are allowed to be executed
 in parallel.
 
-The underlying system for this is simply [curl's multi request handler][8],
+The underlying system for this is simply [cURL's multi request handler][8],
 but this provides a much nicer API to handle this.
 
 Sample usage:
@@ -279,7 +277,7 @@ $client->wait();
 
 ```
 
-Check out examples/asyncclient.php for more information.
+Check out `examples/asyncclient.php` for more information.
 
 Writing a reverse proxy
 -----------------------
@@ -298,7 +296,7 @@ $remoteUrl = 'http://example.org/';
 // The url we're proxying from. Please note that this must be a relative url,
 // and basically acts as the base url.
 //
-// If youre $remoteUrl doesn't end with a slash, this one probably shouldn't
+// If your $remoteUrl doesn't end with a slash, this one probably shouldn't
 // either.
 $myBaseUrl = '/reverseproxy.php';
 // $myBaseUrl = '/~evert/sabre/http/examples/reverseproxy.php/';
@@ -322,7 +320,6 @@ $response = $client->send($subRequest);
 // Sends the response back to the client that connected to the proxy.
 Sapi::sendResponse($response);
 ```
-
 
 The Request and Response API's
 ------------------------------
@@ -415,10 +412,10 @@ function setBaseUrl($url);
  * If the full path is equal to the base url, this method will return an
  * empty string.
  *
- * This method will also urldecode the path, and if the url was incoded as
+ * This method will also urldecode the path, and if the url was encoded as
  * ISO-8859-1, it will convert it to UTF-8.
  *
- * If the path is outside of the base url, a LogicException will be thrown.
+ * If the path is outside the base url, a LogicException will be thrown.
  *
  * @return string
  */
@@ -494,7 +491,7 @@ function getBodyAsStream();
 function getBodyAsString();
 
 /**
- * Returns the message body, as it's internal representation.
+ * Returns the message body, as its internal representation.
  *
  * This could be either a string or a stream.
  *
@@ -518,7 +515,7 @@ function setBody($body);
 function getHeaders();
 
 /**
- * Returns a specific HTTP header, based on it's name.
+ * Returns a specific HTTP header, based on its name.
  *
  * The name must be treated as case-insensitive.
  *
@@ -532,7 +529,7 @@ function getHeader($name);
 /**
  * Updates a HTTP header.
  *
- * The case-sensitity of the name value must be retained as-is.
+ * The case-sensitivity of the name value must be retained as-is.
  *
  * @param string $name
  * @param string $value
@@ -564,7 +561,7 @@ function addHeaders(array $headers);
 /**
  * Removes a HTTP header.
  *
- * The specified header name must be treated as case-insenstive.
+ * The specified header name must be treated as case-insensitive.
  * This method should return true if the header was successfully deleted,
  * and false if the header did not exist.
  *
@@ -575,7 +572,7 @@ function removeHeader($name);
 /**
  * Sets the HTTP version.
  *
- * Should be 1.0 or 1.1.
+ * Should be 1.0, 1.1 or 2.0.
  *
  * @param string $version
  * @return void
@@ -596,7 +593,7 @@ function getHttpVersion();
 /**
  * Returns the current HTTP status.
  *
- * This is the status-code as well as the human readable string.
+ * This is the status-code as well as the human-readable string.
  *
  * @return string
  */
@@ -605,7 +602,7 @@ function getStatus();
 /**
  * Sets the HTTP status code.
  *
- * This can be either the full HTTP status code with human readable string,
+ * This can be either the full HTTP status code with human-readable string,
  * for example: "403 I can't let you do that, Dave".
  *
  * Or just the code, in which case the appropriate default message will be
@@ -638,7 +635,7 @@ function getBodyAsStream();
 function getBodyAsString();
 
 /**
- * Returns the message body, as it's internal representation.
+ * Returns the message body, as its internal representation.
  *
  * This could be either a string or a stream.
  *
@@ -663,7 +660,7 @@ function setBody($body);
 function getHeaders();
 
 /**
- * Returns a specific HTTP header, based on it's name.
+ * Returns a specific HTTP header, based on its name.
  *
  * The name must be treated as case-insensitive.
  *
@@ -677,7 +674,7 @@ function getHeader($name);
 /**
  * Updates a HTTP header.
  *
- * The case-sensitity of the name value must be retained as-is.
+ * The case-sensitivity of the name value must be retained as-is.
  *
  * @param string $name
  * @param string $value
@@ -709,7 +706,7 @@ function addHeaders(array $headers);
 /**
  * Removes a HTTP header.
  *
- * The specified header name must be treated as case-insenstive.
+ * The specified header name must be treated as case-insensitive.
  * This method should return true if the header was successfully deleted,
  * and false if the header did not exist.
  *
@@ -720,7 +717,7 @@ function removeHeader($name);
 /**
  * Sets the HTTP version.
  *
- * Should be 1.0 or 1.1.
+ * Should be 1.0, 1.1 or 2.0.
  *
  * @param string $version
  * @return void
@@ -741,10 +738,10 @@ Made at fruux
 This library is being developed by [fruux](https://fruux.com/). Drop us a line for commercial services or enterprise support.
 
 [1]: http://getcomposer.org/
-[2]: http://code.google.com/p/sabredav
+[2]: http://sabre.io/
 [3]: https://github.com/symfony/HttpFoundation
-[4]: http://uk3.php.net/curl
+[4]: http://php.net/curl
 [5]: https://github.com/fruux/sabre-event
 [6]: http://en.wikipedia.org/wiki/Decorator_pattern
 [7]: http://guzzlephp.org/
-[8]: http://www.php.net/manual/en/function.curl-multi-init.php
+[8]: http://php.net/curl_multi_init

@@ -1,88 +1,90 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\CardDAV;
 
 use Sabre\DAV;
 use Sabre\DAVACL;
 
 /**
- * The AddressBook class represents a CardDAV addressbook, owned by a specific user
+ * The AddressBook class represents a CardDAV addressbook, owned by a specific user.
  *
  * The AddressBook can contain multiple vcards
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-class AddressBook extends DAV\Collection implements IAddressBook, DAV\IProperties, DAVACL\IACL, DAV\Sync\ISyncCollection, DAV\IMultiGet {
+class AddressBook extends DAV\Collection implements IAddressBook, DAV\IProperties, DAVACL\IACL, DAV\Sync\ISyncCollection, DAV\IMultiGet
+{
+    use DAVACL\ACLTrait;
 
     /**
-     * This is an array with addressbook information
+     * This is an array with addressbook information.
      *
      * @var array
      */
     protected $addressBookInfo;
 
     /**
-     * CardDAV backend
+     * CardDAV backend.
      *
      * @var Backend\BackendInterface
      */
     protected $carddavBackend;
 
     /**
-     * Constructor
-     *
-     * @param Backend\BackendInterface $carddavBackend
-     * @param array $addressBookInfo
+     * Constructor.
      */
-    public function __construct(Backend\BackendInterface $carddavBackend, array $addressBookInfo) {
-
+    public function __construct(Backend\BackendInterface $carddavBackend, array $addressBookInfo)
+    {
         $this->carddavBackend = $carddavBackend;
         $this->addressBookInfo = $addressBookInfo;
-
     }
 
     /**
-     * Returns the name of the addressbook
+     * Returns the name of the addressbook.
      *
      * @return string
      */
-    public function getName() {
-
+    public function getName()
+    {
         return $this->addressBookInfo['uri'];
-
     }
 
     /**
-     * Returns a card
+     * Returns a card.
      *
      * @param string $name
-     * @return \ICard
+     *
+     * @return Card
      */
-    public function getChild($name) {
+    public function getChild($name)
+    {
+        $obj = $this->carddavBackend->getCard($this->addressBookInfo['id'], $name);
+        if (!$obj) {
+            throw new DAV\Exception\NotFound('Card not found');
+        }
 
-        $obj = $this->carddavBackend->getCard($this->addressBookInfo['id'],$name);
-        if (!$obj) throw new DAV\Exception\NotFound('Card not found');
-        return new Card($this->carddavBackend,$this->addressBookInfo,$obj);
-
+        return new Card($this->carddavBackend, $this->addressBookInfo, $obj);
     }
 
     /**
-     * Returns the full list of cards
+     * Returns the full list of cards.
      *
      * @return array
      */
-    public function getChildren() {
-
+    public function getChildren()
+    {
         $objs = $this->carddavBackend->getCards($this->addressBookInfo['id']);
         $children = [];
-        foreach($objs as $obj) {
+        foreach ($objs as $obj) {
             $obj['acl'] = $this->getChildACL();
-            $children[] = new Card($this->carddavBackend,$this->addressBookInfo,$obj);
+            $children[] = new Card($this->carddavBackend, $this->addressBookInfo, $obj);
         }
-        return $children;
 
+        return $children;
     }
 
     /**
@@ -91,89 +93,81 @@ class AddressBook extends DAV\Collection implements IAddressBook, DAV\IPropertie
      *
      * If any children are not found, you do not have to return them.
      *
+     * @param string[] $paths
+     *
      * @return array
      */
-    public function getMultipleChildren(array $paths) {
-
+    public function getMultipleChildren(array $paths)
+    {
         $objs = $this->carddavBackend->getMultipleCards($this->addressBookInfo['id'], $paths);
         $children = [];
-        foreach($objs as $obj) {
+        foreach ($objs as $obj) {
             $obj['acl'] = $this->getChildACL();
-            $children[] = new Card($this->carddavBackend,$this->addressBookInfo,$obj);
+            $children[] = new Card($this->carddavBackend, $this->addressBookInfo, $obj);
         }
-        return $children;
 
+        return $children;
     }
 
     /**
-     * Creates a new directory
+     * Creates a new directory.
      *
      * We actually block this, as subdirectories are not allowed in addressbooks.
      *
      * @param string $name
-     * @return void
      */
-    public function createDirectory($name) {
-
+    public function createDirectory($name)
+    {
         throw new DAV\Exception\MethodNotAllowed('Creating collections in addressbooks is not allowed');
-
     }
 
     /**
-     * Creates a new file
+     * Creates a new file.
      *
      * The contents of the new file must be a valid VCARD.
      *
      * This method may return an ETag.
      *
-     * @param string $name
-     * @param resource $vcardData
+     * @param string   $name
+     * @param resource $data
+     *
      * @return string|null
      */
-    public function createFile($name,$vcardData = null) {
-
-        if (is_resource($vcardData)) {
-            $vcardData = stream_get_contents($vcardData);
+    public function createFile($name, $data = null)
+    {
+        if (is_resource($data)) {
+            $data = stream_get_contents($data);
         }
         // Converting to UTF-8, if needed
-        $vcardData = DAV\StringUtil::ensureUTF8($vcardData);
+        $data = DAV\StringUtil::ensureUTF8($data);
 
-        return $this->carddavBackend->createCard($this->addressBookInfo['id'],$name,$vcardData);
-
+        return $this->carddavBackend->createCard($this->addressBookInfo['id'], $name, $data);
     }
 
     /**
      * Deletes the entire addressbook.
-     *
-     * @return void
      */
-    public function delete() {
-
+    public function delete()
+    {
         $this->carddavBackend->deleteAddressBook($this->addressBookInfo['id']);
-
     }
 
     /**
-     * Renames the addressbook
+     * Renames the addressbook.
      *
      * @param string $newName
-     * @return void
      */
-    public function setName($newName) {
-
+    public function setName($newName)
+    {
         throw new DAV\Exception\MethodNotAllowed('Renaming addressbooks is not yet supported');
-
     }
 
     /**
      * Returns the last modification date as a unix timestamp.
-     *
-     * @return void
      */
-    public function getLastModified() {
-
+    public function getLastModified()
+    {
         return null;
-
     }
 
     /**
@@ -184,14 +178,10 @@ class AddressBook extends DAV\Collection implements IAddressBook, DAV\IPropertie
      *
      * To update specific properties, call the 'handle' method on this object.
      * Read the PropPatch documentation for more information.
-     *
-     * @param DAV\PropPatch $propPatch
-     * @return void
      */
-    public function propPatch(DAV\PropPatch $propPatch) {
-
+    public function propPatch(DAV\PropPatch $propPatch)
+    {
         return $this->carddavBackend->updateAddressBook($this->addressBookInfo['id'], $propPatch);
-
     }
 
     /**
@@ -203,79 +193,31 @@ class AddressBook extends DAV\Collection implements IAddressBook, DAV\IPropertie
      * If the array is empty, it means 'all properties' were requested.
      *
      * @param array $properties
+     *
      * @return array
      */
-    public function getProperties($properties) {
-
+    public function getProperties($properties)
+    {
         $response = [];
-        foreach($properties as $propertyName) {
-
+        foreach ($properties as $propertyName) {
             if (isset($this->addressBookInfo[$propertyName])) {
-
                 $response[$propertyName] = $this->addressBookInfo[$propertyName];
-
             }
-
         }
 
         return $response;
-
     }
 
     /**
-     * Returns the owner principal
+     * Returns the owner principal.
      *
      * This must be a url to a principal, or null if there's no owner
      *
      * @return string|null
      */
-    public function getOwner() {
-
+    public function getOwner()
+    {
         return $this->addressBookInfo['principaluri'];
-
-    }
-
-    /**
-     * Returns a group principal
-     *
-     * This must be a url to a principal, or null if there's no owner
-     *
-     * @return string|null
-     */
-    public function getGroup() {
-
-        return null;
-
-    }
-
-    /**
-     * Returns a list of ACE's for this node.
-     *
-     * Each ACE has the following properties:
-     *   * 'privilege', a string such as {DAV:}read or {DAV:}write. These are
-     *     currently the only supported privileges
-     *   * 'principal', a url to the principal who owns the node
-     *   * 'protected' (optional), indicating that this ACE is not allowed to
-     *      be updated.
-     *
-     * @return array
-     */
-    public function getACL() {
-
-        return [
-            [
-                'privilege' => '{DAV:}read',
-                'principal' => $this->getOwner(),
-                'protected' => true,
-            ],
-            [
-                'privilege' => '{DAV:}write',
-                'principal' => $this->getOwner(),
-                'protected' => true,
-            ],
-
-        ];
-
     }
 
     /**
@@ -285,53 +227,15 @@ class AddressBook extends DAV\Collection implements IAddressBook, DAV\IPropertie
      *
      * @return array
      */
-    public function getChildACL() {
-
+    public function getChildACL()
+    {
         return [
             [
-                'privilege' => '{DAV:}read',
-                'principal' => $this->getOwner(),
-                'protected' => true,
-            ],
-            [
-                'privilege' => '{DAV:}write',
+                'privilege' => '{DAV:}all',
                 'principal' => $this->getOwner(),
                 'protected' => true,
             ],
         ];
-
-    }
-
-    /**
-     * Updates the ACL
-     *
-     * This method will receive a list of new ACE's.
-     *
-     * @param array $acl
-     * @return void
-     */
-    public function setACL(array $acl) {
-
-        throw new DAV\Exception\MethodNotAllowed('Changing ACL is not yet supported');
-
-    }
-
-    /**
-     * Returns the list of supported privileges for this node.
-     *
-     * The returned data structure is a list of nested privileges.
-     * See Sabre\DAVACL\Plugin::getDefaultSupportedPrivilegeSet for a simple
-     * standard structure.
-     *
-     * If null is returned from this method, the default privilege set is used,
-     * which is fine for most common usecases.
-     *
-     * @return array|null
-     */
-    public function getSupportedPrivilegeSet() {
-
-        return null;
-
     }
 
     /**
@@ -343,8 +247,8 @@ class AddressBook extends DAV\Collection implements IAddressBook, DAV\IPropertie
      *
      * @return string|null
      */
-    public function getSyncToken() {
-
+    public function getSyncToken()
+    {
         if (
             $this->carddavBackend instanceof Backend\SyncSupport &&
             isset($this->addressBookInfo['{DAV:}sync-token'])
@@ -357,7 +261,6 @@ class AddressBook extends DAV\Collection implements IAddressBook, DAV\IPropertie
         ) {
             return $this->addressBookInfo['{http://sabredav.org/ns}sync-token'];
         }
-
     }
 
     /**
@@ -411,12 +314,13 @@ class AddressBook extends DAV\Collection implements IAddressBook, DAV\IPropertie
      * The limit is 'suggestive'. You are free to ignore it.
      *
      * @param string $syncToken
-     * @param int $syncLevel
-     * @param int $limit
-     * @return array
+     * @param int    $syncLevel
+     * @param int    $limit
+     *
+     * @return array|null
      */
-    public function getChanges($syncToken, $syncLevel, $limit = null) {
-
+    public function getChanges($syncToken, $syncLevel, $limit = null)
+    {
         if (!$this->carddavBackend instanceof Backend\SyncSupport) {
             return null;
         }
@@ -427,6 +331,5 @@ class AddressBook extends DAV\Collection implements IAddressBook, DAV\IPropertie
             $syncLevel,
             $limit
         );
-
     }
 }

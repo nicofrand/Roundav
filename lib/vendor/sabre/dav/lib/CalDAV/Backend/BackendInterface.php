@@ -1,23 +1,25 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\CalDAV\Backend;
 
 /**
  * Every CalDAV backend must at least implement this interface.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-interface BackendInterface {
-
+interface BackendInterface
+{
     /**
      * Returns a list of calendars for a principal.
      *
      * Every project is an array with the following keys:
      *  * id, a unique id that will be used by other functions to modify the
      *    calendar. This can be the same as the uri or a database key.
-     *  * uri, which the basename of the uri with which the calendar is
+     *  * uri, which is the basename of the uri with which the calendar is
      *    accessed.
      *  * principaluri. The owner of the calendar. Almost always the same as
      *    principalUri passed to this method.
@@ -30,7 +32,11 @@ interface BackendInterface {
      * For this property, you can just return an instance of
      * Sabre\CalDAV\Property\SupportedCalendarComponentSet.
      *
+     * If you return {http://sabredav.org/ns}read-only and set the value to 1,
+     * ACL will automatically be put in read-only mode.
+     *
      * @param string $principalUri
+     *
      * @return array
      */
     public function getCalendarsForUser($principalUri);
@@ -38,15 +44,17 @@ interface BackendInterface {
     /**
      * Creates a new calendar for a principal.
      *
-     * If the creation was a success, an id must be returned that can be used to reference
-     * this calendar in other methods, such as updateCalendar.
+     * If the creation was a success, an id must be returned that can be used to
+     * reference this calendar in other methods, such as updateCalendar.
+     *
+     * The id can be any type, including ints, strings, objects or array.
      *
      * @param string $principalUri
      * @param string $calendarUri
-     * @param array $properties
-     * @return void
+     *
+     * @return mixed
      */
-    public function createCalendar($principalUri,$calendarUri,array $properties);
+    public function createCalendar($principalUri, $calendarUri, array $properties);
 
     /**
      * Updates properties for a calendar.
@@ -58,19 +66,16 @@ interface BackendInterface {
      * Calling the handle method is like telling the PropPatch object "I
      * promise I can handle updating this property".
      *
-     * Read the PropPatch documenation for more info and examples.
+     * Read the PropPatch documentation for more info and examples.
      *
-     * @param string $path
-     * @param \Sabre\DAV\PropPatch $propPatch
-     * @return void
+     * @param mixed $calendarId
      */
     public function updateCalendar($calendarId, \Sabre\DAV\PropPatch $propPatch);
 
     /**
-     * Delete a calendar and all it's objects
+     * Delete a calendar and all its objects.
      *
      * @param mixed $calendarId
-     * @return void
      */
     public function deleteCalendar($calendarId);
 
@@ -78,7 +83,6 @@ interface BackendInterface {
      * Returns all calendar objects within a calendar.
      *
      * Every item contains an array with the following keys:
-     *   * id - unique identifier which will be used for subsequent updates
      *   * calendardata - The iCalendar-compatible calendar data
      *   * uri - a unique key which will be used to construct the uri. This can
      *     be any arbitrary string, but making sure it ends with '.ics' is a
@@ -87,7 +91,6 @@ interface BackendInterface {
      *   * lastmodified - a timestamp of the last modification time
      *   * etag - An arbitrary string, surrounded by double-quotes. (e.g.:
      *   '"abcdef"')
-     *   * calendarid - The calendarid as it was passed to this function.
      *   * size - The size of the calendar objects, in bytes.
      *   * component - optional, a string containing the type of object, such
      *     as 'vevent' or 'vtodo'. If specified, this will be used to populate
@@ -105,6 +108,7 @@ interface BackendInterface {
      * amount of times this is needed is reduced by a great degree.
      *
      * @param mixed $calendarId
+     *
      * @return array
      */
     public function getCalendarObjects($calendarId);
@@ -121,11 +125,12 @@ interface BackendInterface {
      *
      * This method must return null if the object did not exist.
      *
-     * @param mixed $calendarId
+     * @param mixed  $calendarId
      * @param string $objectUri
+     *
      * @return array|null
      */
-    public function getCalendarObject($calendarId,$objectUri);
+    public function getCalendarObject($calendarId, $objectUri);
 
     /**
      * Returns a list of calendar objects.
@@ -136,7 +141,7 @@ interface BackendInterface {
      * If the backend supports this, it may allow for some speed-ups.
      *
      * @param mixed $calendarId
-     * @param array $uris
+     *
      * @return array
      */
     public function getMultipleCalendarObjects($calendarId, array $uris);
@@ -146,20 +151,21 @@ interface BackendInterface {
      *
      * The object uri is only the basename, or filename and not a full path.
      *
-     * It is possible return an etag from this function, which will be used in
-     * the response to this PUT request. Note that the ETag must be surrounded
-     * by double-quotes.
+     * It is possible to return an etag from this function, which will be used
+     * in the response to this PUT request. Note that the ETag must be
+     * surrounded by double-quotes.
      *
      * However, you should only really return this ETag if you don't mangle the
      * calendar-data. If the result of a subsequent GET to this object is not
      * the exact same as this request body, you should omit the ETag.
      *
-     * @param mixed $calendarId
+     * @param mixed  $calendarId
      * @param string $objectUri
      * @param string $calendarData
+     *
      * @return string|null
      */
-    public function createCalendarObject($calendarId,$objectUri,$calendarData);
+    public function createCalendarObject($calendarId, $objectUri, $calendarData);
 
     /**
      * Updates an existing calendarobject, based on it's uri.
@@ -174,23 +180,23 @@ interface BackendInterface {
      * calendar-data. If the result of a subsequent GET to this object is not
      * the exact same as this request body, you should omit the ETag.
      *
-     * @param mixed $calendarId
+     * @param mixed  $calendarId
      * @param string $objectUri
      * @param string $calendarData
+     *
      * @return string|null
      */
-    public function updateCalendarObject($calendarId,$objectUri,$calendarData);
+    public function updateCalendarObject($calendarId, $objectUri, $calendarData);
 
     /**
      * Deletes an existing calendar object.
      *
      * The object uri is only the basename, or filename and not a full path.
      *
-     * @param mixed $calendarId
+     * @param mixed  $calendarId
      * @param string $objectUri
-     * @return void
      */
-    public function deleteCalendarObject($calendarId,$objectUri);
+    public function deleteCalendarObject($calendarId, $objectUri);
 
     /**
      * Performs a calendar-query on the contents of this calendar.
@@ -215,7 +221,7 @@ interface BackendInterface {
      *
      * This default may well be good enough for personal use, and calendars
      * that aren't very large. But if you anticipate high usage, big calendars
-     * or high loads, you are strongly adviced to optimize certain paths.
+     * or high loads, you are strongly advised to optimize certain paths.
      *
      * The best way to do so is override this method and to optimize
      * specifically for 'common filters'.
@@ -238,9 +244,30 @@ interface BackendInterface {
      * to think of.
      *
      * @param mixed $calendarId
-     * @param array $filters
+     *
      * @return array
      */
     public function calendarQuery($calendarId, array $filters);
 
+    /**
+     * Searches through all of a users calendars and calendar objects to find
+     * an object with a specific UID.
+     *
+     * This method should return the path to this object, relative to the
+     * calendar home, so this path usually only contains two parts:
+     *
+     * calendarpath/objectpath.ics
+     *
+     * If the uid is not found, return null.
+     *
+     * This method should only consider * objects that the principal owns, so
+     * any calendars owned by other principals that also appear in this
+     * collection should be ignored.
+     *
+     * @param string $principalUri
+     * @param string $uid
+     *
+     * @return string|null
+     */
+    public function getCalendarObjectByUID($principalUri, $uid);
 }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\DAV\Locks\Backend;
 
 use Sabre\DAV\Locks\LockInfo;
@@ -13,32 +15,31 @@ use Sabre\DAV\Locks\LockInfo;
  *
  * It literally solves the problem this class solves as well, but much better.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-class File extends AbstractBackend {
-
+class File extends AbstractBackend
+{
     /**
-     * The storage file
+     * The storage file.
      *
      * @var string
      */
     private $locksFile;
 
     /**
-     * Constructor
+     * Constructor.
      *
      * @param string $locksFile path to file
      */
-    public function __construct($locksFile) {
-
+    public function __construct($locksFile)
+    {
         $this->locksFile = $locksFile;
-
     }
 
     /**
-     * Returns a list of Sabre\DAV\Locks\LockInfo objects
+     * Returns a list of Sabre\DAV\Locks\LockInfo objects.
      *
      * This method should return all the locks for a particular uri, including
      * locks that might be set on a parent uri.
@@ -47,47 +48,46 @@ class File extends AbstractBackend {
      * any locks in the subtree of the uri for locks.
      *
      * @param string $uri
-     * @param bool $returnChildLocks
+     * @param bool   $returnChildLocks
+     *
      * @return array
      */
-    public function getLocks($uri, $returnChildLocks) {
-
-        $newLocks = array();
+    public function getLocks($uri, $returnChildLocks)
+    {
+        $newLocks = [];
 
         $locks = $this->getData();
 
-        foreach($locks as $lock) {
-
+        foreach ($locks as $lock) {
             if ($lock->uri === $uri ||
                 //deep locks on parents
-                ($lock->depth!=0 && strpos($uri, $lock->uri . '/')===0) ||
+                (0 != $lock->depth && 0 === strpos($uri, $lock->uri.'/')) ||
 
                 // locks on children
-                ($returnChildLocks && (strpos($lock->uri, $uri . '/')===0)) ) {
-
+                ($returnChildLocks && (0 === strpos($lock->uri, $uri.'/')))) {
                 $newLocks[] = $lock;
-
             }
-
         }
 
         // Checking if we can remove any of these locks
-        foreach($newLocks as $k=>$lock) {
-            if (time() > $lock->timeout + $lock->created) unset($newLocks[$k]);
+        foreach ($newLocks as $k => $lock) {
+            if (time() > $lock->timeout + $lock->created) {
+                unset($newLocks[$k]);
+            }
         }
-        return $newLocks;
 
+        return $newLocks;
     }
 
     /**
-     * Locks a uri
+     * Locks a uri.
      *
      * @param string $uri
-     * @param LockInfo $lockInfo
+     *
      * @return bool
      */
-    public function lock($uri, LockInfo $lockInfo) {
-
+    public function lock($uri, LockInfo $lockInfo)
+    {
         // We're making the lock timeout 30 minutes
         $lockInfo->timeout = 1800;
         $lockInfo->created = time();
@@ -95,7 +95,7 @@ class File extends AbstractBackend {
 
         $locks = $this->getData();
 
-        foreach($locks as $k=>$lock) {
+        foreach ($locks as $k => $lock) {
             if (
                 ($lock->token == $lockInfo->token) ||
                 (time() > $lock->timeout + $lock->created)
@@ -105,32 +105,30 @@ class File extends AbstractBackend {
         }
         $locks[] = $lockInfo;
         $this->putData($locks);
-        return true;
 
+        return true;
     }
 
     /**
-     * Removes a lock from a uri
+     * Removes a lock from a uri.
      *
      * @param string $uri
-     * @param LockInfo $lockInfo
+     *
      * @return bool
      */
-    public function unlock($uri, LockInfo $lockInfo) {
-
+    public function unlock($uri, LockInfo $lockInfo)
+    {
         $locks = $this->getData();
-        foreach($locks as $k=>$lock) {
-
+        foreach ($locks as $k => $lock) {
             if ($lock->token == $lockInfo->token) {
-
                 unset($locks[$k]);
                 $this->putData($locks);
-                return true;
 
+                return true;
             }
         }
-        return false;
 
+        return false;
     }
 
     /**
@@ -138,48 +136,47 @@ class File extends AbstractBackend {
      *
      * @return array
      */
-    protected function getData() {
-
-        if (!file_exists($this->locksFile)) return array();
+    protected function getData()
+    {
+        if (!file_exists($this->locksFile)) {
+            return [];
+        }
 
         // opening up the file, and creating a shared lock
-        $handle = fopen($this->locksFile,'r');
-        flock($handle,LOCK_SH);
+        $handle = fopen($this->locksFile, 'r');
+        flock($handle, LOCK_SH);
 
         // Reading data until the eof
         $data = stream_get_contents($handle);
 
         // We're all good
-        flock($handle,LOCK_UN);
+        flock($handle, LOCK_UN);
         fclose($handle);
 
         // Unserializing and checking if the resource file contains data for this file
         $data = unserialize($data);
-        if (!$data) return array();
-        return $data;
+        if (!$data) {
+            return [];
+        }
 
+        return $data;
     }
 
     /**
-     * Saves the lockdata
-     *
-     * @param array $newData
-     * @return void
+     * Saves the lockdata.
      */
-    protected function putData(array $newData) {
-
+    protected function putData(array $newData)
+    {
         // opening up the file, and creating an exclusive lock
-        $handle = fopen($this->locksFile,'a+');
-        flock($handle,LOCK_EX);
+        $handle = fopen($this->locksFile, 'a+');
+        flock($handle, LOCK_EX);
 
         // We can only truncate and rewind once the lock is acquired.
-        ftruncate($handle,0);
+        ftruncate($handle, 0);
         rewind($handle);
 
-        fwrite($handle,serialize($newData));
-        flock($handle,LOCK_UN);
+        fwrite($handle, serialize($newData));
+        flock($handle, LOCK_UN);
         fclose($handle);
-
     }
-
 }

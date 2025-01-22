@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\DAV;
 
 /**
@@ -7,12 +9,12 @@ namespace Sabre\DAV;
  *
  * Plugins can modify or extend the servers behaviour.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-abstract class ServerPlugin {
-
+abstract class ServerPlugin
+{
     /**
      * This initializes the plugin.
      *
@@ -20,9 +22,6 @@ abstract class ServerPlugin {
      * addPlugin is called.
      *
      * This method should set up the required event subscriptions.
-     *
-     * @param Server $server
-     * @return void
      */
     abstract public function initialize(Server $server);
 
@@ -34,10 +33,9 @@ abstract class ServerPlugin {
      *
      * @return array
      */
-    public function getFeatures() {
-
+    public function getFeatures()
+    {
         return [];
-
     }
 
     /**
@@ -48,12 +46,12 @@ abstract class ServerPlugin {
      * available for the specified uri.
      *
      * @param string $path
+     *
      * @return array
      */
-    public function getHTTPMethods($path) {
-
+    public function getHTTPMethods($path)
+    {
         return [];
-
     }
 
     /**
@@ -64,10 +62,9 @@ abstract class ServerPlugin {
      *
      * @return string
      */
-    public function getPluginName() {
-
+    public function getPluginName()
+    {
         return get_class($this);
-
     }
 
     /**
@@ -78,13 +75,31 @@ abstract class ServerPlugin {
      * implement them
      *
      * @param string $uri
+     *
      * @return array
      */
-    public function getSupportedReportSet($uri) {
-
+    public function getSupportedReportSet($uri)
+    {
         return [];
-
     }
 
+    /**
+     * Returns a bunch of meta-data about the plugin.
+     *
+     * Providing this information is optional, and is mainly displayed by the
+     * Browser plugin.
+     *
+     * The description key in the returned array may contain html and will not
+     * be sanitized.
+     *
+     * @return array
+     */
+    public function getPluginInfo()
+    {
+        return [
+            'name' => $this->getPluginName(),
+            'description' => null,
+            'link' => null,
+        ];
+    }
 }
-

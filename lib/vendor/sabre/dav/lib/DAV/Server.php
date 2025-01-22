@@ -1,70 +1,80 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\DAV;
 
-use
-    Sabre\Event\EventEmitter,
-    Sabre\HTTP,
-    Sabre\HTTP\RequestInterface,
-    Sabre\HTTP\ResponseInterface,
-    Sabre\HTTP\URLUtil;
+use Psr\Log\LoggerAwareInterface;
+use Psr\Log\LoggerAwareTrait;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Sabre\Event\EmitterInterface;
+use Sabre\Event\WildcardEmitterTrait;
+use Sabre\HTTP;
+use Sabre\HTTP\RequestInterface;
+use Sabre\HTTP\ResponseInterface;
+use Sabre\Uri;
+use Sabre\Xml\Writer;
 
 /**
- * Main DAV server class
+ * Main DAV server class.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-class Server extends EventEmitter {
+class Server implements LoggerAwareInterface, EmitterInterface
+{
+    use LoggerAwareTrait;
+    use WildcardEmitterTrait;
 
     /**
-     * Infinity is used for some request supporting the HTTP Depth header and indicates that the operation should traverse the entire tree
+     * Infinity is used for some request supporting the HTTP Depth header and indicates that the operation should traverse the entire tree.
      */
     const DEPTH_INFINITY = -1;
 
     /**
-     * XML namespace for all SabreDAV related elements
+     * XML namespace for all SabreDAV related elements.
      */
     const NS_SABREDAV = 'http://sabredav.org/ns';
 
     /**
-     * The tree object
+     * The tree object.
      *
-     * @var Sabre\DAV\Tree
+     * @var Tree
      */
     public $tree;
 
     /**
-     * The base uri
+     * The base uri.
      *
      * @var string
      */
     protected $baseUri = null;
 
     /**
-     * httpResponse
+     * httpResponse.
      *
-     * @var Sabre\HTTP\Response
+     * @var HTTP\Response
      */
     public $httpResponse;
 
     /**
-     * httpRequest
+     * httpRequest.
      *
-     * @var Sabre\HTTP\Request
+     * @var HTTP\Request
      */
     public $httpRequest;
 
     /**
-     * PHP HTTP Sapi
+     * PHP HTTP Sapi.
      *
-     * @var Sabre\HTTP\Sapi
+     * @var HTTP\Sapi
      */
     public $sapi;
 
     /**
-     * The list of plugins
+     * The list of plugins.
      *
      * @var array
      */
@@ -84,28 +94,13 @@ class Server extends EventEmitter {
     public $transactionType;
 
     /**
-     * This is a default list of namespaces.
+     * This is a list of properties that are always server-controlled, and
+     * must not get modified with PROPPATCH.
      *
-     * If you are defining your own custom namespace, add it here to reduce
-     * bandwidth and improve legibility of xml bodies.
+     * Plugins may add to this list.
      *
-     * @var array
+     * @var string[]
      */
-    public $xmlNamespaces = [
-        'DAV:' => 'd',
-        'http://sabredav.org/ns' => 's',
-    ];
-
-    /**
-     * The propertymap can be used to map properties from
-     * requests to property classes.
-     *
-     * @var array
-     */
-    public $propertyMap = [
-        '{DAV:}resourcetype' => 'Sabre\\DAV\\Property\\ResourceType',
-    ];
-
     public $protectedProperties = [
         // RFC4918
         '{DAV:}getcontentlength',
@@ -137,12 +132,11 @@ class Server extends EventEmitter {
 
         // sabredav extensions
         '{http://sabredav.org/ns}sync-token',
-
     ];
 
     /**
      * This is a flag that allow or not showing file, line and code
-     * of the exception in the returned XML
+     * of the exception in the returned XML.
      *
      * @var bool
      */
@@ -175,6 +169,13 @@ class Server extends EventEmitter {
     public $enablePropfindDepthInfinity = false;
 
     /**
+     * Reference to the XML utility object.
+     *
+     * @var Xml\Service
+     */
+    public $xml;
+
+    /**
      * If this setting is turned off, SabreDAV's version number will be hidden
      * from various places.
      *
@@ -182,65 +183,63 @@ class Server extends EventEmitter {
      *
      * @var bool
      */
-    static public $exposeVersion = true;
+    public static $exposeVersion = true;
 
     /**
-     * Sets up the server
+     * If this setting is turned on, any multi status response on any PROPFIND will be streamed to the output buffer.
+     * This will be beneficial for large result sets which will no longer consume a large amount of memory as well as
+     * send back data to the client earlier.
+     *
+     * @var bool
+     */
+    public static $streamMultiStatus = false;
+
+    /**
+     * Sets up the server.
      *
      * If a Sabre\DAV\Tree object is passed as an argument, it will
      * use it as the directory tree. If a Sabre\DAV\INode is passed, it
-     * will create a Sabre\DAV\ObjectTree and use the node as the root.
+     * will create a Sabre\DAV\Tree and use the node as the root.
      *
      * If nothing is passed, a Sabre\DAV\SimpleCollection is created in
-     * a Sabre\DAV\ObjectTree.
+     * a Sabre\DAV\Tree.
      *
      * If an array is passed, we automatically create a root node, and use
      * the nodes in the array as top-level children.
      *
      * @param Tree|INode|array|null $treeOrNode The tree object
+     *
+     * @throws Exception
      */
-    public function __construct($treeOrNode = null) {
-
+    public function __construct($treeOrNode = null, ?HTTP\Sapi $sapi = null)
+    {
         if ($treeOrNode instanceof Tree) {
             $this->tree = $treeOrNode;
         } elseif ($treeOrNode instanceof INode) {
-            $this->tree = new ObjectTree($treeOrNode);
+            $this->tree = new Tree($treeOrNode);
         } elseif (is_array($treeOrNode)) {
-
-            // If it's an array, a list of nodes was passed, and we need to
-            // create the root node.
-            foreach($treeOrNode as $node) {
-                if (!($node instanceof INode)) {
-                    throw new Exception('Invalid argument passed to constructor. If you\'re passing an array, all the values must implement Sabre\\DAV\\INode');
-                }
-            }
-
             $root = new SimpleCollection('root', $treeOrNode);
-            $this->tree = new ObjectTree($root);
-
+            $this->tree = new Tree($root);
         } elseif (is_null($treeOrNode)) {
             $root = new SimpleCollection('root');
-            $this->tree = new ObjectTree($root);
+            $this->tree = new Tree($root);
         } else {
             throw new Exception('Invalid argument passed to constructor. Argument must either be an instance of Sabre\\DAV\\Tree, Sabre\\DAV\\INode, an array or null');
         }
 
-        $this->sapi = new HTTP\Sapi();
+        $this->xml = new Xml\Service();
+        $this->sapi = $sapi ?? new HTTP\Sapi();
         $this->httpResponse = new HTTP\Response();
         $this->httpRequest = $this->sapi->getRequest();
         $this->addPlugin(new CorePlugin());
-
     }
 
     /**
-     * Starts the DAV Server
-     *
-     * @return void
+     * Starts the DAV Server.
      */
-    public function exec() {
-
+    public function start()
+    {
         try {
-
             // If nginx (pre-1.2) is used as a proxy server, and SabreDAV as an
             // origin, we must make sure we send back HTTP/1.0 if this was
             // requested.
@@ -252,103 +251,103 @@ class Server extends EventEmitter {
             // Setting the base url
             $this->httpRequest->setBaseUrl($this->getBaseUri());
             $this->invokeMethod($this->httpRequest, $this->httpResponse);
-
-        } catch (\Exception $e) {
-
+        } catch (\Throwable $e) {
             try {
                 $this->emit('exception', [$e]);
             } catch (\Exception $ignore) {
             }
-            $DOM = new \DOMDocument('1.0','utf-8');
+            $DOM = new \DOMDocument('1.0', 'utf-8');
             $DOM->formatOutput = true;
 
-            $error = $DOM->createElementNS('DAV:','d:error');
-            $error->setAttribute('xmlns:s',self::NS_SABREDAV);
+            $error = $DOM->createElementNS('DAV:', 'd:error');
+            $error->setAttribute('xmlns:s', self::NS_SABREDAV);
             $DOM->appendChild($error);
 
-            $h = function($v) {
-
-                return htmlspecialchars($v, ENT_NOQUOTES, 'UTF-8');
-
+            $h = function ($v) {
+                return htmlspecialchars((string) $v, ENT_NOQUOTES, 'UTF-8');
             };
 
             if (self::$exposeVersion) {
-                $error->appendChild($DOM->createElement('s:sabredav-version',$h(Version::VERSION)));
+                $error->appendChild($DOM->createElement('s:sabredav-version', $h(Version::VERSION)));
             }
 
-            $error->appendChild($DOM->createElement('s:exception',$h(get_class($e))));
-            $error->appendChild($DOM->createElement('s:message',$h($e->getMessage())));
+            $error->appendChild($DOM->createElement('s:exception', $h(get_class($e))));
+            $error->appendChild($DOM->createElement('s:message', $h($e->getMessage())));
             if ($this->debugExceptions) {
-                $error->appendChild($DOM->createElement('s:file',$h($e->getFile())));
-                $error->appendChild($DOM->createElement('s:line',$h($e->getLine())));
-                $error->appendChild($DOM->createElement('s:code',$h($e->getCode())));
-                $error->appendChild($DOM->createElement('s:stacktrace',$h($e->getTraceAsString())));
+                $error->appendChild($DOM->createElement('s:file', $h($e->getFile())));
+                $error->appendChild($DOM->createElement('s:line', $h($e->getLine())));
+                $error->appendChild($DOM->createElement('s:code', $h($e->getCode())));
+                $error->appendChild($DOM->createElement('s:stacktrace', $h($e->getTraceAsString())));
             }
 
             if ($this->debugExceptions) {
                 $previous = $e;
                 while ($previous = $previous->getPrevious()) {
                     $xPrevious = $DOM->createElement('s:previous-exception');
-                    $xPrevious->appendChild($DOM->createElement('s:exception',$h(get_class($previous))));
-                    $xPrevious->appendChild($DOM->createElement('s:message',$h($previous->getMessage())));
-                    $xPrevious->appendChild($DOM->createElement('s:file',$h($previous->getFile())));
-                    $xPrevious->appendChild($DOM->createElement('s:line',$h($previous->getLine())));
-                    $xPrevious->appendChild($DOM->createElement('s:code',$h($previous->getCode())));
-                    $xPrevious->appendChild($DOM->createElement('s:stacktrace',$h($previous->getTraceAsString())));
+                    $xPrevious->appendChild($DOM->createElement('s:exception', $h(get_class($previous))));
+                    $xPrevious->appendChild($DOM->createElement('s:message', $h($previous->getMessage())));
+                    $xPrevious->appendChild($DOM->createElement('s:file', $h($previous->getFile())));
+                    $xPrevious->appendChild($DOM->createElement('s:line', $h($previous->getLine())));
+                    $xPrevious->appendChild($DOM->createElement('s:code', $h($previous->getCode())));
+                    $xPrevious->appendChild($DOM->createElement('s:stacktrace', $h($previous->getTraceAsString())));
                     $error->appendChild($xPrevious);
                 }
             }
 
-
-            if($e instanceof Exception) {
-
+            if ($e instanceof Exception) {
                 $httpCode = $e->getHTTPCode();
-                $e->serialize($this,$error);
+                $e->serialize($this, $error);
                 $headers = $e->getHTTPHeaders($this);
-
             } else {
-
                 $httpCode = 500;
                 $headers = [];
-
             }
             $headers['Content-Type'] = 'application/xml; charset=utf-8';
 
             $this->httpResponse->setStatus($httpCode);
-            $this->httpResponse->addHeaders($headers);
+            $this->httpResponse->setHeaders($headers);
             $this->httpResponse->setBody($DOM->saveXML());
             $this->sapi->sendResponse($this->httpResponse);
-
         }
-
     }
 
     /**
-     * Sets the base server uri
+     * Alias of start().
+     *
+     * @deprecated
+     */
+    public function exec()
+    {
+        $this->start();
+    }
+
+    /**
+     * Sets the base server uri.
      *
      * @param string $uri
-     * @return void
      */
-    public function setBaseUri($uri) {
-
+    public function setBaseUri($uri)
+    {
         // If the baseUri does not end with a slash, we must add it
-        if ($uri[strlen($uri)-1]!=='/')
-            $uri.='/';
+        if ('/' !== $uri[strlen($uri) - 1]) {
+            $uri .= '/';
+        }
 
         $this->baseUri = $uri;
-
     }
 
     /**
-     * Returns the base responding uri
+     * Returns the base responding uri.
      *
      * @return string
      */
-    public function getBaseUri() {
+    public function getBaseUri()
+    {
+        if (is_null($this->baseUri)) {
+            $this->baseUri = $this->guessBaseUri();
+        }
 
-        if (is_null($this->baseUri)) $this->baseUri = $this->guessBaseUri();
         return $this->baseUri;
-
     }
 
     /**
@@ -359,53 +358,48 @@ class Server extends EventEmitter {
      *
      * @return string
      */
-    public function guessBaseUri() {
-
+    public function guessBaseUri()
+    {
         $pathInfo = $this->httpRequest->getRawServerValue('PATH_INFO');
         $uri = $this->httpRequest->getRawServerValue('REQUEST_URI');
 
         // If PATH_INFO is found, we can assume it's accurate.
         if (!empty($pathInfo)) {
-
             // We need to make sure we ignore the QUERY_STRING part
-            if ($pos = strpos($uri,'?'))
-                $uri = substr($uri,0,$pos);
+            if ($pos = strpos($uri, '?')) {
+                $uri = substr($uri, 0, $pos);
+            }
 
             // PATH_INFO is only set for urls, such as: /example.php/path
             // in that case PATH_INFO contains '/path'.
             // Note that REQUEST_URI is percent encoded, while PATH_INFO is
             // not, Therefore they are only comparable if we first decode
             // REQUEST_INFO as well.
-            $decodedUri = URLUtil::decodePath($uri);
+            $decodedUri = HTTP\decodePath($uri);
 
             // A simple sanity check:
-            if(substr($decodedUri,strlen($decodedUri)-strlen($pathInfo))===$pathInfo) {
-                $baseUri = substr($decodedUri,0,strlen($decodedUri)-strlen($pathInfo));
-                return rtrim($baseUri,'/') . '/';
+            if (substr($decodedUri, strlen($decodedUri) - strlen($pathInfo)) === $pathInfo) {
+                $baseUri = substr($decodedUri, 0, strlen($decodedUri) - strlen($pathInfo));
+
+                return rtrim($baseUri, '/').'/';
             }
 
-            throw new Exception('The REQUEST_URI ('. $uri . ') did not end with the contents of PATH_INFO (' . $pathInfo . '). This server might be misconfigured.');
-
+            throw new Exception('The REQUEST_URI ('.$uri.') did not end with the contents of PATH_INFO ('.$pathInfo.'). This server might be misconfigured.');
         }
 
         // The last fallback is that we're just going to assume the server root.
         return '/';
-
     }
 
     /**
-     * Adds a plugin to the server
+     * Adds a plugin to the server.
      *
      * For more information, console the documentation of Sabre\DAV\ServerPlugin
-     *
-     * @param ServerPlugin $plugin
-     * @return void
      */
-    public function addPlugin(ServerPlugin $plugin) {
-
+    public function addPlugin(ServerPlugin $plugin)
+    {
         $this->plugins[$plugin->getPluginName()] = $plugin;
         $plugin->initialize($this);
-
     }
 
     /**
@@ -414,66 +408,88 @@ class Server extends EventEmitter {
      * This function returns null if the plugin was not found.
      *
      * @param string $name
+     *
      * @return ServerPlugin
      */
-    public function getPlugin($name) {
-
-        if (isset($this->plugins[$name]))
+    public function getPlugin($name)
+    {
+        if (isset($this->plugins[$name])) {
             return $this->plugins[$name];
-
-        // This is a fallback and deprecated.
-        foreach($this->plugins as $plugin) {
-            if (get_class($plugin)===$name) return $plugin;
         }
 
         return null;
-
     }
 
     /**
-     * Returns all plugins
+     * Returns all plugins.
      *
      * @return array
      */
-    public function getPlugins() {
-
+    public function getPlugins()
+    {
         return $this->plugins;
-
     }
 
     /**
-     * Handles a http request, and execute a method based on its name
+     * Returns the PSR-3 logger object.
      *
-     * @param RequestInterface $request
-     * @param ResponseInterface $response
-     * @return void
+     * @return LoggerInterface
      */
-    public function invokeMethod(RequestInterface $request, ResponseInterface $response) {
+    public function getLogger()
+    {
+        if (!$this->logger) {
+            $this->logger = new NullLogger();
+        }
 
+        return $this->logger;
+    }
+
+    /**
+     * Handles a http request, and execute a method based on its name.
+     *
+     * @param bool $sendResponse whether to send the HTTP response to the DAV client
+     */
+    public function invokeMethod(RequestInterface $request, ResponseInterface $response, $sendResponse = true)
+    {
         $method = $request->getMethod();
 
-        if (!$this->emit('beforeMethod:' . $method,[$request, $response])) return;
-        if (!$this->emit('beforeMethod',[$request, $response])) return;
+        if (!$this->emit('beforeMethod:'.$method, [$request, $response])) {
+            return;
+        }
+
+        if (self::$exposeVersion) {
+            $response->setHeader('X-Sabre-Version', Version::VERSION);
+        }
 
         $this->transactionType = strtolower($method);
 
         if (!$this->checkPreconditions($request, $response)) {
             $this->sapi->sendResponse($response);
+
             return;
         }
 
-        if ($this->emit('method:' . $method, [$request, $response])) {
-            if ($this->emit('method',[$request, $response])) {
-                // Unsupported method
-                throw new Exception\NotImplemented('There was no handler found for this "' . $method . '" method');
+        if ($this->emit('method:'.$method, [$request, $response])) {
+            $exMessage = 'There was no plugin in the system that was willing to handle this '.$method.' method.';
+            if ('GET' === $method) {
+                $exMessage .= ' Enable the Browser plugin to get a better result here.';
             }
+
+            // Unsupported method
+            throw new Exception\NotImplemented($exMessage);
         }
 
-        if (!$this->emit('afterMethod:' . $method,[$request, $response])) return;
-        if (!$this->emit('afterMethod', [$request, $response])) return;
+        if (!$this->emit('afterMethod:'.$method, [$request, $response])) {
+            return;
+        }
 
-        $this->sapi->sendResponse($response);
-
+        if (null === $response->getStatus()) {
+            throw new Exception('No subsystem set a valid HTTP status code. Something must have interrupted the request without providing further detail.');
+        }
+        if ($sendResponse) {
+            $this->sapi->sendResponse($response);
+            $this->emit('afterResponse', [$request, $response]);
+        }
     }
 
     // {{{ HTTP/WebDAV protocol helpers
@@ -482,10 +498,11 @@ class Server extends EventEmitter {
      * Returns an array with all the supported HTTP methods for a specific uri.
      *
      * @param string $path
+     *
      * @return array
      */
-    public function getAllowedMethods($path) {
-
+    public function getAllowedMethods($path)
+    {
         $methods = [
             'OPTIONS',
             'GET',
@@ -496,7 +513,7 @@ class Server extends EventEmitter {
             'PROPPATCH',
             'COPY',
             'MOVE',
-            'REPORT'
+            'REPORT',
         ];
 
         // The MKCOL is only allowed on an unmapped uri
@@ -507,87 +524,92 @@ class Server extends EventEmitter {
         }
 
         // We're also checking if any of the plugins register any new methods
-        foreach($this->plugins as $plugin) $methods = array_merge($methods, $plugin->getHTTPMethods($path));
+        foreach ($this->plugins as $plugin) {
+            $methods = array_merge($methods, $plugin->getHTTPMethods($path));
+        }
         array_unique($methods);
 
         return $methods;
-
     }
 
     /**
-     * Gets the uri for the request, keeping the base uri into consideration
+     * Gets the uri for the request, keeping the base uri into consideration.
      *
      * @return string
      */
-    public function getRequestUri() {
-
+    public function getRequestUri()
+    {
         return $this->calculateUri($this->httpRequest->getUrl());
-
     }
 
     /**
-     * Calculates the uri for a request, making sure that the base uri is stripped out
+     * Turns a URI such as the REQUEST_URI into a local path.
+     *
+     * This method:
+     *   * strips off the base path
+     *   * normalizes the path
+     *   * uri-decodes the path
      *
      * @param string $uri
+     *
      * @throws Exception\Forbidden A permission denied exception is thrown whenever there was an attempt to supply a uri outside of the base uri
+     *
      * @return string
      */
-    public function calculateUri($uri) {
-
-        if ($uri[0]!='/' && strpos($uri,'://')) {
-
-            $uri = parse_url($uri,PHP_URL_PATH);
-
+    public function calculateUri($uri)
+    {
+        if ('' != $uri && '/' != $uri[0] && strpos($uri, '://')) {
+            $uri = parse_url($uri, PHP_URL_PATH);
         }
 
-        $uri = str_replace('//','/',$uri);
+        $uri = Uri\normalize(preg_replace('|/+|', '/', $uri));
+        $baseUri = Uri\normalize($this->getBaseUri());
 
-        if (strpos($uri,$this->getBaseUri())===0) {
-
-            return trim(URLUtil::decodePath(substr($uri,strlen($this->getBaseUri()))),'/');
+        if (0 === strpos($uri, $baseUri)) {
+            return trim(HTTP\decodePath(substr($uri, strlen($baseUri))), '/');
 
         // A special case, if the baseUri was accessed without a trailing
         // slash, we'll accept it as well.
-        } elseif ($uri.'/' === $this->getBaseUri()) {
-
+        } elseif ($uri.'/' === $baseUri) {
             return '';
-
         } else {
-
-            throw new Exception\Forbidden('Requested uri (' . $uri . ') is out of base uri (' . $this->getBaseUri() . ')');
-
+            throw new Exception\Forbidden('Requested uri ('.$uri.') is out of base uri ('.$this->getBaseUri().')');
         }
-
     }
 
     /**
-     * Returns the HTTP depth header
+     * Returns the HTTP depth header.
      *
      * This method returns the contents of the HTTP depth request header. If the depth header was 'infinity' it will return the Sabre\DAV\Server::DEPTH_INFINITY object
      * It is possible to supply a default depth value, which is used when the depth header has invalid content, or is completely non-existent
      *
      * @param mixed $default
+     *
      * @return int
      */
-    public function getHTTPDepth($default = self::DEPTH_INFINITY) {
-
+    public function getHTTPDepth($default = self::DEPTH_INFINITY)
+    {
         // If its not set, we'll grab the default
         $depth = $this->httpRequest->getHeader('Depth');
 
-        if (is_null($depth)) return $default;
+        if (is_null($depth)) {
+            return $default;
+        }
 
-        if ($depth == 'infinity') return self::DEPTH_INFINITY;
-
+        if ('infinity' == $depth) {
+            return self::DEPTH_INFINITY;
+        }
 
         // If its an unknown value. we'll grab the default
-        if (!ctype_digit($depth)) return $default;
+        if (!ctype_digit($depth)) {
+            return $default;
+        }
 
-        return (int)$depth;
-
+        return (int) $depth;
     }
 
     /**
-     * Returns the HTTP range header
+     * Returns the HTTP range header.
      *
      * This method returns null if there is no well-formed HTTP range request
      * header or array($start, $end).
@@ -598,24 +620,29 @@ class Server extends EventEmitter {
      * If the second offset is null, it should be treated as the offset of the last byte of the entity
      * If the first offset is null, the second offset should be used to retrieve the last x bytes of the entity
      *
-     * @return array|null
+     * @return int[]|null
      */
-    public function getHTTPRange() {
-
+    public function getHTTPRange()
+    {
         $range = $this->httpRequest->getHeader('range');
-        if (is_null($range)) return null;
+        if (is_null($range)) {
+            return null;
+        }
 
         // Matching "Range: bytes=1234-5678: both numbers are optional
 
-        if (!preg_match('/^bytes=([0-9]*)-([0-9]*)$/i',$range,$matches)) return null;
+        if (!preg_match('/^bytes=([0-9]*)-([0-9]*)$/i', $range, $matches)) {
+            return null;
+        }
 
-        if ($matches[1]==='' && $matches[2]==='') return null;
+        if ('' === $matches[1] && '' === $matches[2]) {
+            return null;
+        }
 
         return [
-            $matches[1]!==''?$matches[1]:null,
-            $matches[2]!==''?$matches[2]:null,
+            '' !== $matches[1] ? (int) $matches[1] : null,
+            '' !== $matches[2] ? (int) $matches[2] : null,
         ];
-
     }
 
     /**
@@ -644,60 +671,33 @@ class Server extends EventEmitter {
      *
      * @return array
      */
-    public function getHTTPPrefer() {
-
+    public function getHTTPPrefer()
+    {
         $result = [
-            'return-asynch'         => false,
-            'return-minimal'        => false,
-            'return-representation' => false,
-            'wait'                  => null,
-            'strict'                => false,
-            'lenient'               => false,
+            // can be true or false
+            'respond-async' => false,
+            // Could be set to 'representation' or 'minimal'.
+            'return' => null,
+            // Used as a timeout, is usually a number.
+            'wait' => null,
+            // can be 'strict' or 'lenient'.
+            'handling' => false,
         ];
 
         if ($prefer = $this->httpRequest->getHeader('Prefer')) {
-
-            $parameters = array_map('trim',
-                explode(',', $prefer)
+            $result = array_merge(
+                $result,
+                HTTP\parsePrefer($prefer)
             );
-
-            foreach($parameters as $parameter) {
-
-                // Right now our regex only supports the tokens actually
-                // specified in the draft. We may need to expand this if new
-                // tokens get registered.
-                if(!preg_match('/^(?P<token>[a-z0-9-]+)(?:=(?P<value>[0-9]+))?$/', $parameter, $matches)) {
-                    continue;
-                }
-
-                switch($matches['token']) {
-
-                    case 'return-asynch' :
-                    case 'return-minimal' :
-                    case 'return-representation' :
-                    case 'strict' :
-                    case 'lenient' :
-                        $result[$matches['token']] = true;
-                        break;
-                    case 'wait' :
-                        $result[$matches['token']] = $matches['value'];
-                        break;
-
-                }
-
-            }
-
-        } elseif ($this->httpRequest->getHeader('Brief')=='t') {
-            $result['return-minimal'] = true;
+        } elseif ('t' == $this->httpRequest->getHeader('Brief')) {
+            $result['return'] = 'minimal';
         }
 
         return $result;
-
     }
 
-
     /**
-     * Returns information about Copy and Move requests
+     * Returns information about Copy and Move requests.
      *
      * This function is created to help getting information about the source and the destination for the
      * WebDAV MOVE and COPY HTTP request. It also validates a lot of information and throws proper exceptions
@@ -706,88 +706,103 @@ class Server extends EventEmitter {
      *   * destination - Destination path
      *   * destinationExists - Whether or not the destination is an existing url (and should therefore be overwritten)
      *
-     * @param RequestInterface $request
-     * @throws Exception\BadRequest upon missing or broken request headers
+     * @throws Exception\BadRequest           upon missing or broken request headers
      * @throws Exception\UnsupportedMediaType when trying to copy into a
-     *         non-collection.
-     * @throws Exception\PreconditionFailed If overwrite is set to false, but
-     *         the destination exists.
-     * @throws Exception\Forbidden when source and destination paths are
-     *         identical.
-     * @throws Exception\Conflict When trying to copy a node into its own
-     *         subtree.
+     *                                        non-collection
+     * @throws Exception\PreconditionFailed   if overwrite is set to false, but
+     *                                        the destination exists
+     * @throws Exception\Forbidden            when source and destination paths are
+     *                                        identical
+     * @throws Exception\Conflict             when trying to copy a node into its own
+     *                                        subtree
+     *
      * @return array
      */
-    public function getCopyAndMoveInfo(RequestInterface $request) {
-
+    public function getCopyAndMoveInfo(RequestInterface $request)
+    {
         // Collecting the relevant HTTP headers
-        if (!$request->getHeader('Destination')) throw new Exception\BadRequest('The destination header was not supplied');
+        if (!$request->getHeader('Destination')) {
+            throw new Exception\BadRequest('The destination header was not supplied');
+        }
         $destination = $this->calculateUri($request->getHeader('Destination'));
         $overwrite = $request->getHeader('Overwrite');
-        if (!$overwrite) $overwrite = 'T';
-        if (strtoupper($overwrite)=='T') $overwrite = true;
-        elseif (strtoupper($overwrite)=='F') $overwrite = false;
+        if (!$overwrite) {
+            $overwrite = 'T';
+        }
+        if ('T' == strtoupper($overwrite)) {
+            $overwrite = true;
+        } elseif ('F' == strtoupper($overwrite)) {
+            $overwrite = false;
+        }
         // We need to throw a bad request exception, if the header was invalid
-        else throw new Exception\BadRequest('The HTTP Overwrite header should be either T or F');
-
-        list($destinationDir) = URLUtil::splitPath($destination);
+        else {
+            throw new Exception\BadRequest('The HTTP Overwrite header should be either T or F');
+        }
+        list($destinationDir) = Uri\split($destination);
 
         try {
             $destinationParent = $this->tree->getNodeForPath($destinationDir);
-            if (!($destinationParent instanceof ICollection)) throw new Exception\UnsupportedMediaType('The destination node is not a collection');
+            if (!($destinationParent instanceof ICollection)) {
+                throw new Exception\UnsupportedMediaType('The destination node is not a collection');
+            }
         } catch (Exception\NotFound $e) {
-
             // If the destination parent node is not found, we throw a 409
             throw new Exception\Conflict('The destination node is not found');
         }
 
         try {
-
             $destinationNode = $this->tree->getNodeForPath($destination);
 
             // If this succeeded, it means the destination already exists
             // we'll need to throw precondition failed in case overwrite is false
-            if (!$overwrite) throw new Exception\PreconditionFailed('The destination node already exists, and the overwrite header is set to false','Overwrite');
-
+            if (!$overwrite) {
+                throw new Exception\PreconditionFailed('The destination node already exists, and the overwrite header is set to false', 'Overwrite');
+            }
         } catch (Exception\NotFound $e) {
-
             // Destination didn't exist, we're all good
             $destinationNode = false;
-
         }
 
         $requestPath = $request->getPath();
-        if ($destination===$requestPath) {
+        if ($destination === $requestPath) {
             throw new Exception\Forbidden('Source and destination uri are identical.');
         }
-        if (substr($destination, 0, strlen($requestPath)+1) === $requestPath . '/') {
+        if (substr($destination, 0, strlen($requestPath) + 1) === $requestPath.'/') {
             throw new Exception\Conflict('The destination may not be part of the same subtree as the source path.');
         }
 
         // These are the three relevant properties we need to return
         return [
-            'destination'       => $destination,
-            'destinationExists' => $destinationNode==true,
-            'destinationNode'   => $destinationNode,
+            'destination' => $destination,
+            'destinationExists' => (bool) $destinationNode,
+            'destinationNode' => $destinationNode,
         ];
-
     }
 
     /**
-     * Returns a list of properties for a path
+     * Returns a list of properties for a path.
      *
-     * This is a simplified version getPropertiesForPath.
-     * if you aren't interested in status codes, but you just
-     * want to have a flat list of properties. Use this method.
+     * This is a simplified version getPropertiesForPath. If you aren't
+     * interested in status codes, but you just want to have a flat list of
+     * properties, use this method.
+     *
+     * Please note though that any problems related to retrieving properties,
+     * such as permission issues will just result in an empty array being
+     * returned.
      *
      * @param string $path
-     * @param array $propertyNames
+     * @param array  $propertyNames
+     *
+     * @return array
      */
-    public function getProperties($path, $propertyNames) {
-
-        $result = $this->getPropertiesForPath($path,$propertyNames,0);
-        return $result[0][200];
-
+    public function getProperties($path, $propertyNames)
+    {
+        $result = $this->getPropertiesForPath($path, $propertyNames, 0);
+        if (isset($result[0][200])) {
+            return $result[0][200];
+        } else {
+            return [];
+        }
     }
 
     /**
@@ -799,26 +814,27 @@ class Server extends EventEmitter {
      * The parent node will not be returned.
      *
      * @param string $path
-     * @param array $propertyNames
+     * @param array  $propertyNames
+     *
      * @return array
      */
-    public function getPropertiesForChildren($path, $propertyNames) {
-
+    public function getPropertiesForChildren($path, $propertyNames)
+    {
         $result = [];
-        foreach($this->getPropertiesForPath($path,$propertyNames,1) as $k=>$row) {
-
+        foreach ($this->getPropertiesForPath($path, $propertyNames, 1) as $k => $row) {
             // Skipping the parent path
-            if ($k === 0) continue;
+            if (0 === $k) {
+                continue;
+            }
 
             $result[$row['href']] = $row[200];
-
         }
-        return $result;
 
+        return $result;
     }
 
     /**
-     * Returns a list of HTTP headers for a particular resource
+     * Returns a list of HTTP headers for a particular resource.
      *
      * The generated http headers are based on properties provided by the
      * resource. The method basically provides a simple mapping between
@@ -827,69 +843,83 @@ class Server extends EventEmitter {
      * The headers are intended to be used for HEAD and GET requests.
      *
      * @param string $path
+     *
      * @return array
      */
-    public function getHTTPHeaders($path) {
-
+    public function getHTTPHeaders($path)
+    {
         $propertyMap = [
-            '{DAV:}getcontenttype'   => 'Content-Type',
+            '{DAV:}getcontenttype' => 'Content-Type',
             '{DAV:}getcontentlength' => 'Content-Length',
-            '{DAV:}getlastmodified'  => 'Last-Modified',
-            '{DAV:}getetag'          => 'ETag',
+            '{DAV:}getlastmodified' => 'Last-Modified',
+            '{DAV:}getetag' => 'ETag',
         ];
 
-        $properties = $this->getProperties($path,array_keys($propertyMap));
+        $properties = $this->getProperties($path, array_keys($propertyMap));
 
         $headers = [];
-        foreach($propertyMap as $property=>$header) {
-            if (!isset($properties[$property])) continue;
+        foreach ($propertyMap as $property => $header) {
+            if (!isset($properties[$property])) {
+                continue;
+            }
 
             if (is_scalar($properties[$property])) {
                 $headers[$header] = $properties[$property];
 
             // GetLastModified gets special cased
-            } elseif ($properties[$property] instanceof Property\GetLastModified) {
-                $headers[$header] = HTTP\Util::toHTTPDate($properties[$property]->getTime());
+            } elseif ($properties[$property] instanceof Xml\Property\GetLastModified) {
+                $headers[$header] = HTTP\toDate($properties[$property]->getTime());
             }
-
         }
 
         return $headers;
-
     }
 
     /**
      * Small helper to support PROPFIND with DEPTH_INFINITY.
+     *
+     * @param array $yieldFirst
+     *
+     * @return \Traversable
      */
-    private function addPathNodesRecursively(&$propFindRequests, PropFind $propFind) {
-
+    private function generatePathNodes(PropFind $propFind, ?array $yieldFirst = null)
+    {
+        if (null !== $yieldFirst) {
+            yield $yieldFirst;
+        }
         $newDepth = $propFind->getDepth();
         $path = $propFind->getPath();
 
-        if ($newDepth !== self::DEPTH_INFINITY) {
-            $newDepth--;
+        if (self::DEPTH_INFINITY !== $newDepth) {
+            --$newDepth;
         }
 
-        foreach($this->tree->getChildren($path) as $childNode) {
-            $subPropFind = clone $propFind;
-            $subPropFind->setDepth($newDepth);
-            $subPath = $path !== ''? $path . '/' . $childNode->getName() : $childNode->getName();
-            $subPropFind->setPath($subPath);
+        $propertyNames = $propFind->getRequestedProperties();
+        $propFindType = !$propFind->isAllProps() ? PropFind::NORMAL : PropFind::ALLPROPS;
 
-            $propFindRequests[] = [
+        foreach ($this->tree->getChildren($path) as $childNode) {
+            if ('' !== $path) {
+                $subPath = $path.'/'.$childNode->getName();
+            } else {
+                $subPath = $childNode->getName();
+            }
+            $subPropFind = new PropFind($subPath, $propertyNames, $newDepth, $propFindType);
+
+            yield [
                 $subPropFind,
-                $childNode
+                $childNode,
             ];
 
-            if (($newDepth===self::DEPTH_INFINITY || $newDepth>=1) && $childNode instanceof ICollection) {
-                $this->addPathNodesRecursively($propFindRequests, $subPropFind);
+            if ((self::DEPTH_INFINITY === $newDepth || $newDepth >= 1) && $childNode instanceof ICollection) {
+                foreach ($this->generatePathNodes($subPropFind) as $subItem) {
+                    yield $subItem;
+                }
             }
-
         }
     }
 
     /**
-     * Returns a list of properties for a given path
+     * Returns a list of properties for a given path.
      *
      * The path that should be supplied should have the baseUrl stripped out
      * The list of properties should be supplied in Clark notation. If the list is empty
@@ -898,38 +928,58 @@ class Server extends EventEmitter {
      * If a depth of 1 is requested child elements will also be returned.
      *
      * @param string $path
-     * @param array $propertyNames
-     * @param int $depth
+     * @param array  $propertyNames
+     * @param int    $depth
+     *
      * @return array
+     *
+     * @deprecated Use getPropertiesIteratorForPath() instead (as it's more memory efficient)
+     * @see getPropertiesIteratorForPath()
      */
-    public function getPropertiesForPath($path, $propertyNames = [], $depth = 0) {
+    public function getPropertiesForPath($path, $propertyNames = [], $depth = 0)
+    {
+        return iterator_to_array($this->getPropertiesIteratorForPath($path, $propertyNames, $depth));
+    }
 
+    /**
+     * Returns a list of properties for a given path.
+     *
+     * The path that should be supplied should have the baseUrl stripped out
+     * The list of properties should be supplied in Clark notation. If the list is empty
+     * 'allprops' is assumed.
+     *
+     * If a depth of 1 is requested child elements will also be returned.
+     *
+     * @param string $path
+     * @param array  $propertyNames
+     * @param int    $depth
+     *
+     * @return \Iterator
+     */
+    public function getPropertiesIteratorForPath($path, $propertyNames = [], $depth = 0)
+    {
         // The only two options for the depth of a propfind is 0 or 1 - as long as depth infinity is not enabled
-        if (!$this->enablePropfindDepthInfinity && $depth != 0) $depth = 1;
+        if (!$this->enablePropfindDepthInfinity && 0 != $depth) {
+            $depth = 1;
+        }
 
-        $path = trim($path,'/');
+        $path = trim($path, '/');
 
-        $propFindType = $propertyNames?PropFind::NORMAL:PropFind::ALLPROPS;
-        $propFind = new PropFind($path, $propertyNames, $depth, $propFindType);
+        $propFindType = $propertyNames ? PropFind::NORMAL : PropFind::ALLPROPS;
+        $propFind = new PropFind($path, (array) $propertyNames, $depth, $propFindType);
 
         $parentNode = $this->tree->getNodeForPath($path);
-        $nodes = [
-            $path => $parentNode
-        ];
 
         $propFindRequests = [[
             $propFind,
-            $parentNode
+            $parentNode,
         ]];
 
-        if (($depth > 0 || $depth === self::DEPTH_INFINITY) && $parentNode instanceof ICollection) {
-            $this->addPathNodesRecursively($propFindRequests, $propFind);
+        if (($depth > 0 || self::DEPTH_INFINITY === $depth) && $parentNode instanceof ICollection) {
+            $propFindRequests = $this->generatePathNodes(clone $propFind, current($propFindRequests));
         }
 
-        $returnPropertyList = [];
-
-        foreach($propFindRequests as $propFindRequest) {
-
+        foreach ($propFindRequests as $propFindRequest) {
             list($propFind, $node) = $propFindRequest;
             $r = $this->getPropertiesByNode($propFind, $node);
             if ($r) {
@@ -942,15 +992,11 @@ class Server extends EventEmitter {
                 // principals. This is non-standard, but we support it.
                 $resourceType = $this->getResourceTypeForNode($node);
                 if (in_array('{DAV:}collection', $resourceType) || in_array('{DAV:}principal', $resourceType)) {
-                    $result['href'].='/';
+                    $result['href'] .= '/';
                 }
-                $returnPropertyList[] = $result;
+                yield $result;
             }
-
         }
-
-        return $returnPropertyList;
-
     }
 
     /**
@@ -963,37 +1009,31 @@ class Server extends EventEmitter {
      * The result is returned as an array, with paths for it's keys.
      * The result may be returned out of order.
      *
-     * @param array $paths
-     * @param array $propertyNames
      * @return array
      */
-    public function getPropertiesForMultiplePaths(array $paths, array $propertyNames = []) {
-
+    public function getPropertiesForMultiplePaths(array $paths, array $propertyNames = [])
+    {
         $result = [
         ];
 
         $nodes = $this->tree->getMultipleNodes($paths);
 
-        foreach($nodes as $path=>$node) {
-
+        foreach ($nodes as $path => $node) {
             $propFind = new PropFind($path, $propertyNames);
-            $r = $this->getPropertiesByNode($propFind,$node);
+            $r = $this->getPropertiesByNode($propFind, $node);
             if ($r) {
                 $result[$path] = $propFind->getResultForMultiStatus();
                 $result[$path]['href'] = $path;
 
                 $resourceType = $this->getResourceTypeForNode($node);
                 if (in_array('{DAV:}collection', $resourceType) || in_array('{DAV:}principal', $resourceType)) {
-                    $result[$path]['href'].='/';
+                    $result[$path]['href'] .= '/';
                 }
             }
-
         }
 
         return $result;
-
     }
-
 
     /**
      * Determines all properties for a node.
@@ -1005,14 +1045,11 @@ class Server extends EventEmitter {
      * target node and simply want to run through the system to get a correct
      * list of properties.
      *
-     * @param PropFind $propFind
-     * @param INode $node
      * @return bool
      */
-    public function getPropertiesByNode(PropFind $propFind, INode $node) {
-
+    public function getPropertiesByNode(PropFind $propFind, INode $node)
+    {
         return $this->emit('propFind', [$propFind, $node]);
-
     }
 
     /**
@@ -1027,15 +1064,23 @@ class Server extends EventEmitter {
      * @param string   $uri
      * @param resource $data
      * @param string   $etag
+     *
      * @return bool
      */
-    public function createFile($uri,$data, &$etag = null) {
+    public function createFile($uri, $data, &$etag = null)
+    {
+        list($dir, $name) = Uri\split($uri);
 
-        list($dir,$name) = URLUtil::splitPath($uri);
+        if (!$this->emit('beforeBind', [$uri])) {
+            return false;
+        }
 
-        if (!$this->emit('beforeBind',[$uri])) return false;
+        try {
+            $parent = $this->tree->getNodeForPath($dir);
+        } catch (Exception\NotFound $e) {
+            throw new Exception\Conflict('Files cannot be created in non-existent collections');
+        }
 
-        $parent = $this->tree->getNodeForPath($dir);
         if (!$parent instanceof ICollection) {
             throw new Exception\Conflict('Files can only be created as children of collections');
         }
@@ -1044,18 +1089,22 @@ class Server extends EventEmitter {
         // body, before it gets written. If this is the case, $modified
         // should be set to true.
         //
-        // If $modified is true, we must not send back an etag.
+        // If $modified is true, we must not send back an ETag.
         $modified = false;
-        if (!$this->emit('beforeCreateFile',[$uri, &$data, $parent, &$modified])) return false;
+        if (!$this->emit('beforeCreateFile', [$uri, &$data, $parent, &$modified])) {
+            return false;
+        }
 
-        $etag = $parent->createFile($name,$data);
+        $etag = $parent->createFile($name, $data);
 
-        if ($modified) $etag = null;
+        if ($modified) {
+            $etag = null;
+        }
 
-        $this->tree->markDirty($dir . '/' . $name);
+        $this->tree->markDirty($dir.'/'.$name);
 
-        $this->emit('afterBind',[$uri]);
-        $this->emit('afterCreateFile',[$uri, $parent]);
+        $this->emit('afterBind', [$uri]);
+        $this->emit('afterCreateFile', [$uri, $parent]);
 
         return true;
     }
@@ -1068,73 +1117,58 @@ class Server extends EventEmitter {
      * @param string   $uri
      * @param resource $data
      * @param string   $etag
+     *
      * @return bool
      */
-    public function updateFile($uri,$data, &$etag = null) {
-
+    public function updateFile($uri, $data, &$etag = null)
+    {
         $node = $this->tree->getNodeForPath($uri);
 
         // It is possible for an event handler to modify the content of the
         // body, before it gets written. If this is the case, $modified
         // should be set to true.
         //
-        // If $modified is true, we must not send back an etag.
+        // If $modified is true, we must not send back an ETag.
         $modified = false;
-        if (!$this->emit('beforeWriteContent',[$uri, $node, &$data, &$modified])) return false;
+        if (!$this->emit('beforeWriteContent', [$uri, $node, &$data, &$modified])) {
+            return false;
+        }
 
         $etag = $node->put($data);
-        if ($modified) $etag = null;
-        $this->emit('afterWriteContent',[$uri, $node]);
+        if ($modified) {
+            $etag = null;
+        }
+        $this->emit('afterWriteContent', [$uri, $node]);
 
         return true;
     }
-
-
 
     /**
      * This method is invoked by sub-systems creating a new directory.
      *
      * @param string $uri
-     * @return void
      */
-    public function createDirectory($uri) {
-
-        $this->createCollection($uri,['{DAV:}collection'], []);
-
+    public function createDirectory($uri)
+    {
+        $this->createCollection($uri, new MkCol(['{DAV:}collection'], []));
     }
 
     /**
-     * Use this method to create a new collection
-     *
-     * The {DAV:}resourcetype is specified using the resourceType array.
-     * At the very least it must contain {DAV:}collection.
-     *
-     * The properties array can contain a list of additional properties.
+     * Use this method to create a new collection.
      *
      * @param string $uri The new uri
-     * @param array $resourceType The resourceType(s)
-     * @param array $properties A list of properties
+     *
      * @return array|null
      */
-    public function createCollection($uri, array $resourceType, array $properties) {
-
-        list($parentUri,$newName) = URLUtil::splitPath($uri);
-
-        // Making sure {DAV:}collection was specified as resourceType
-        if (!in_array('{DAV:}collection', $resourceType)) {
-            throw new Exception\InvalidResourceType('The resourceType for this collection must at least include {DAV:}collection');
-        }
-
+    public function createCollection($uri, MkCol $mkCol)
+    {
+        list($parentUri, $newName) = Uri\split($uri);
 
         // Making sure the parent exists
         try {
-
             $parent = $this->tree->getNodeForPath($parentUri);
-
         } catch (Exception\NotFound $e) {
-
             throw new Exception\Conflict('Parent node does not exist');
-
         }
 
         // Making sure the parent is a collection
@@ -1142,89 +1176,72 @@ class Server extends EventEmitter {
             throw new Exception\Conflict('Parent node is not a collection');
         }
 
-
-
         // Making sure the child does not already exist
         try {
             $parent->getChild($newName);
 
             // If we got here.. it means there's already a node on that url, and we need to throw a 405
             throw new Exception\MethodNotAllowed('The resource you tried to create already exists');
-
         } catch (Exception\NotFound $e) {
-            // This is correct
+            // NotFound is the expected behavior.
         }
 
+        if (!$this->emit('beforeBind', [$uri])) {
+            return;
+        }
 
-        if (!$this->emit('beforeBind',[$uri])) return;
-
-        // There are 2 modes of operation. The standard collection
-        // creates the directory, and then updates properties
-        // the extended collection can create it directly.
         if ($parent instanceof IExtendedCollection) {
-
-            $parent->createExtendedCollection($newName, $resourceType, $properties);
-
+            /*
+             * If the parent is an instance of IExtendedCollection, it means that
+             * we can pass the MkCol object directly as it may be able to store
+             * properties immediately.
+             */
+            $parent->createExtendedCollection($newName, $mkCol);
         } else {
-
-            // No special resourcetypes are supported
-            if (count($resourceType)>1) {
+            /*
+             * If the parent is a standard ICollection, it means only
+             * 'standard' collections can be created, so we should fail any
+             * MKCOL operation that carries extra resourcetypes.
+             */
+            if (count($mkCol->getResourceType()) > 1) {
                 throw new Exception\InvalidResourceType('The {DAV:}resourcetype you specified is not supported here.');
             }
 
             $parent->createDirectory($newName);
-            $rollBack = false;
-            $exception = null;
-            $errorResult = null;
-
-            if (count($properties)>0) {
-
-                try {
-
-                    $errorResult = $this->updateProperties($uri, $properties);
-                    if (!isset($errorResult[200])) {
-                        $rollBack = true;
-                    }
-
-                } catch (Exception $e) {
-
-                    $rollBack = true;
-                    $exception = $e;
-
-                }
-
-            }
-
-            if ($rollBack) {
-                if (!$this->emit('beforeUnbind',[$uri])) return;
-                $this->tree->delete($uri);
-
-                // Re-throwing exception
-                if ($exception) throw $exception;
-
-                // Re-arranging the result so it makes sense for
-                // generateMultiStatus.
-                $newResult = [
-                    'href' => $uri,
-                ];
-                foreach($errorResult as $property=>$code) {
-                    if (!isset($newResult[$code])) {
-                        $newResult[$code] = [$property => null];
-                    } else {
-                        $newResult[$code][$property] = null;
-                    }
-                }
-                return $newResult;
-            }
-
         }
-        $this->tree->markDirty($parentUri);
-        $this->emit('afterBind',[$uri]);
 
+        // If there are any properties that have not been handled/stored,
+        // we ask the 'propPatch' event to handle them. This will allow for
+        // example the propertyStorage system to store properties upon MKCOL.
+        if ($mkCol->getRemainingMutations()) {
+            $this->emit('propPatch', [$uri, $mkCol]);
+        }
+        $success = $mkCol->commit();
+
+        if (!$success) {
+            $result = $mkCol->getResult();
+
+            $formattedResult = [
+                'href' => $uri,
+            ];
+
+            foreach ($result as $propertyName => $status) {
+                if (!isset($formattedResult[$status])) {
+                    $formattedResult[$status] = [];
+                }
+                $formattedResult[$status][$propertyName] = null;
+            }
+
+            return $formattedResult;
+        }
+
+        $this->tree->markDirty($parentUri);
+        $this->emit('afterBind', [$uri]);
+        $this->emit('afterCreateCollection', [$uri]);
     }
 
     /**
-     * This method updates a resource's properties
+     * This method updates a resource's properties.
      *
      * The properties array must be a list of properties. Array-keys are
      * property names in clarknotation, array-values are it's values.
@@ -1237,17 +1254,16 @@ class Server extends EventEmitter {
      * as their values.
      *
      * @param string $path
-     * @param array $properties
+     *
      * @return array
      */
-    public function updateProperties($path, array $properties) {
-
+    public function updateProperties($path, array $properties)
+    {
         $propPatch = new PropPatch($properties);
         $this->emit('propPatch', [$path, $propPatch]);
         $propPatch->commit();
 
         return $propPatch->getResult();
-
     }
 
     /**
@@ -1268,19 +1284,16 @@ class Server extends EventEmitter {
      * related to If-None-Match, If-Match and If-Unmodified Since. It will
      * set the status to 304 Not Modified for If-Modified_since.
      *
-     * @param RequestInterface $request
-     * @param ResponseInterface $response
      * @return bool
      */
-    public function checkPreconditions(RequestInterface $request, ResponseInterface $response) {
-
+    public function checkPreconditions(RequestInterface $request, ResponseInterface $response)
+    {
         $path = $request->getPath();
         $node = null;
         $lastMod = null;
         $etag = null;
 
         if ($ifMatch = $request->getHeader('If-Match')) {
-
             // If-Match contains an entity tag. Only if the entity-tag
             // matches we are allowed to make the request succeed.
             // If the entity-tag is '*' we are only allowed to make the
@@ -1288,42 +1301,40 @@ class Server extends EventEmitter {
             try {
                 $node = $this->tree->getNodeForPath($path);
             } catch (Exception\NotFound $e) {
-                throw new Exception\PreconditionFailed('An If-Match header was specified and the resource did not exist','If-Match');
+                throw new Exception\PreconditionFailed('An If-Match header was specified and the resource did not exist', 'If-Match');
             }
 
             // Only need to check entity tags if they are not *
-            if ($ifMatch!=='*') {
-
-                // There can be multiple etags
-                $ifMatch = explode(',',$ifMatch);
+            if ('*' !== $ifMatch) {
+                // There can be multiple ETags
+                $ifMatch = explode(',', $ifMatch);
                 $haveMatch = false;
-                foreach($ifMatch as $ifMatchItem) {
-
+                foreach ($ifMatch as $ifMatchItem) {
                     // Stripping any extra spaces
-                    $ifMatchItem = trim($ifMatchItem,' ');
+                    $ifMatchItem = trim($ifMatchItem, ' ');
 
-                    $etag = $node->getETag();
-                    if ($etag===$ifMatchItem) {
+                    $etag = $node instanceof IFile ? $node->getETag() : null;
+                    if ($etag === $ifMatchItem) {
                         $haveMatch = true;
                     } else {
                         // Evolution has a bug where it sometimes prepends the "
                         // with a \. This is our workaround.
-                        if (str_replace('\\"','"', $ifMatchItem) === $etag) {
+                        if (str_replace('\\"', '"', $ifMatchItem) === $etag) {
                             $haveMatch = true;
                         }
                     }
-
                 }
                 if (!$haveMatch) {
-                    if ($etag) $response->setHeader('ETag', $etag);
-                     throw new Exception\PreconditionFailed('An If-Match header was specified, but none of the specified the ETags matched.','If-Match');
+                    if ($etag) {
+                        $response->setHeader('ETag', $etag);
+                    }
+                    throw new Exception\PreconditionFailed('An If-Match header was specified, but none of the specified ETags matched.', 'If-Match');
                 }
             }
         }
 
         if ($ifNoneMatch = $request->getHeader('If-None-Match')) {
-
-            // The If-None-Match header contains an etag.
+            // The If-None-Match header contains an ETag.
             // Only if the ETag does not match the current ETag, the request will succeed
             // The header can also contain *, in which case the request
             // will only succeed if the entity does not exist at all.
@@ -1337,46 +1348,46 @@ class Server extends EventEmitter {
             }
             if ($nodeExists) {
                 $haveMatch = false;
-                if ($ifNoneMatch==='*') $haveMatch = true;
-                else {
-
-                    // There might be multiple etags
+                if ('*' === $ifNoneMatch) {
+                    $haveMatch = true;
+                } else {
+                    // There might be multiple ETags
                     $ifNoneMatch = explode(',', $ifNoneMatch);
-                    $etag = $node->getETag();
+                    $etag = $node instanceof IFile ? $node->getETag() : null;
 
-                    foreach($ifNoneMatch as $ifNoneMatchItem) {
-
+                    foreach ($ifNoneMatch as $ifNoneMatchItem) {
                         // Stripping any extra spaces
-                        $ifNoneMatchItem = trim($ifNoneMatchItem,' ');
+                        $ifNoneMatchItem = trim($ifNoneMatchItem, ' ');
 
-                        if ($etag===$ifNoneMatchItem) $haveMatch = true;
-
+                        if ($etag === $ifNoneMatchItem) {
+                            $haveMatch = true;
+                        }
                     }
-
                 }
 
                 if ($haveMatch) {
-                    if ($etag) $response->setHeader('ETag', $etag);
-                    if ($request->getMethod()==='GET') {
+                    if ($etag) {
+                        $response->setHeader('ETag', $etag);
+                    }
+                    if ('GET' === $request->getMethod()) {
                         $response->setStatus(304);
+
                         return false;
                     } else {
-                        throw new Exception\PreconditionFailed('An If-None-Match header was specified, but the ETag matched (or * was specified).','If-None-Match');
+                        throw new Exception\PreconditionFailed('An If-None-Match header was specified, but the ETag matched (or * was specified).', 'If-None-Match');
                     }
                 }
             }
-
         }
 
         if (!$ifNoneMatch && ($ifModifiedSince = $request->getHeader('If-Modified-Since'))) {
-
             // The If-Modified-Since header contains a date. We
             // will only return the entity if it has been changed since
             // that date. If it hasn't been changed, we return a 304
             // header
             // Note that this header only has to be checked if there was no If-None-Match header
             // as per the HTTP spec.
-            $date = HTTP\Util::parseHTTPDate($ifModifiedSince);
+            $date = HTTP\parseDate($ifModifiedSince);
 
             if ($date) {
                 if (is_null($node)) {
@@ -1384,10 +1395,11 @@ class Server extends EventEmitter {
                 }
                 $lastMod = $node->getLastModified();
                 if ($lastMod) {
-                    $lastMod = new \DateTime('@' . $lastMod);
+                    $lastMod = new \DateTime('@'.$lastMod);
                     if ($lastMod <= $date) {
                         $response->setStatus(304);
-                        $response->setHeader('Last-Modified', HTTP\Util::toHTTPDate($lastMod));
+                        $response->setHeader('Last-Modified', HTTP\toDate($lastMod));
+
                         return false;
                     }
                 }
@@ -1395,10 +1407,9 @@ class Server extends EventEmitter {
         }
 
         if ($ifUnmodifiedSince = $request->getHeader('If-Unmodified-Since')) {
-
             // The If-Unmodified-Since will allow allow the request if the
             // entity has not changed since the specified date.
-            $date = HTTP\Util::parseHTTPDate($ifUnmodifiedSince);
+            $date = HTTP\parseDate($ifUnmodifiedSince);
 
             // We must only check the date if it's valid
             if ($date) {
@@ -1407,17 +1418,16 @@ class Server extends EventEmitter {
                 }
                 $lastMod = $node->getLastModified();
                 if ($lastMod) {
-                    $lastMod = new \DateTime('@' . $lastMod);
+                    $lastMod = new \DateTime('@'.$lastMod);
                     if ($lastMod > $date) {
-                        throw new Exception\PreconditionFailed('An If-Unmodified-Since header was specified, but the entity has been changed since the specified date.','If-Unmodified-Since');
+                        throw new Exception\PreconditionFailed('An If-Unmodified-Since header was specified, but the entity has been changed since the specified date.', 'If-Unmodified-Since');
                     }
                 }
             }
-
         }
 
         // Now the hardest, the If: header. The If: header can contain multiple
-        // urls, etags and so-called 'state tokens'.
+        // urls, ETags and so-called 'state tokens'.
         //
         // Examples of state tokens include lock-tokens (as defined in rfc4918)
         // and sync-tokens (as defined in rfc6578).
@@ -1426,8 +1436,8 @@ class Server extends EventEmitter {
         // Sync and Lock plugin can pick up.
         $ifConditions = $this->getIfConditions($request);
 
-        foreach($ifConditions as $kk => $ifCondition) {
-            foreach($ifCondition['tokens'] as $ii => $token) {
+        foreach ($ifConditions as $kk => $ifCondition) {
+            foreach ($ifCondition['tokens'] as $ii => $token) {
                 $ifConditions[$kk]['tokens'][$ii]['validToken'] = false;
             }
         }
@@ -1435,58 +1445,49 @@ class Server extends EventEmitter {
         // Plugins are responsible for validating all the tokens.
         // If a plugin deemed a token 'valid', it will set 'validToken' to
         // true.
-        $this->emit('validateTokens', [ $request, &$ifConditions ]);
+        $this->emit('validateTokens', [$request, &$ifConditions]);
 
         // Now we're going to analyze the result.
 
         // Every ifCondition needs to validate to true, so we exit as soon as
         // we have an invalid condition.
-        foreach($ifConditions as $ifCondition) {
-
+        foreach ($ifConditions as $ifCondition) {
             $uri = $ifCondition['uri'];
             $tokens = $ifCondition['tokens'];
 
             // We only need 1 valid token for the condition to succeed.
-            foreach($tokens as $token) {
-
+            foreach ($tokens as $token) {
                 $tokenValid = $token['validToken'] || !$token['token'];
 
                 $etagValid = false;
                 if (!$token['etag']) {
                     $etagValid = true;
                 }
-                // Checking the etag, only if the token was already deamed
+                // Checking the ETag, only if the token was already deemed
                 // valid and there is one.
                 if ($token['etag'] && $tokenValid) {
-
-                    // The token was valid, and there was an etag.. We must
-                    // grab the current etag and check it.
+                    // The token was valid, and there was an ETag. We must
+                    // grab the current ETag and check it.
                     $node = $this->tree->getNodeForPath($uri);
                     $etagValid = $node instanceof IFile && $node->getETag() == $token['etag'];
-
                 }
-
 
                 if (($tokenValid && $etagValid) ^ $token['negate']) {
                     // Both were valid, so we can go to the next condition.
                     continue 2;
                 }
-
-
             }
 
-            // If we ended here, it means there was no valid etag + token
+            // If we ended here, it means there was no valid ETag + token
             // combination found for the current condition. This means we fail!
-            throw new Exception\PreconditionFailed('Failed to find a valid token/etag combination for ' . $uri, 'If');
-
+            throw new Exception\PreconditionFailed('Failed to find a valid token/etag combination for '.$uri, 'If');
         }
 
         return true;
-
     }
 
     /**
-     * This method is created to extract information from the WebDAV HTTP 'If:' header
+     * This method is created to extract information from the WebDAV HTTP 'If:' header.
      *
      * The If header can be quite complex, and has a bunch of features. We're using a regex to extract all relevant information
      * The function will return an array, containing structs with the following keys
@@ -1555,31 +1556,31 @@ class Server extends EventEmitter {
      *
      * @return array
      */
-    public function getIfConditions(RequestInterface $request) {
-
+    public function getIfConditions(RequestInterface $request)
+    {
         $header = $request->getHeader('If');
-        if (!$header) return [];
+        if (!$header) {
+            return [];
+        }
 
         $matches = [];
 
         $regex = '/(?:\<(?P<uri>.*?)\>\s)?\((?P<not>Not\s)?(?:\<(?P<token>[^\>]*)\>)?(?:\s?)(?:\[(?P<etag>[^\]]*)\])?\)/im';
-        preg_match_all($regex,$header,$matches,PREG_SET_ORDER);
+        preg_match_all($regex, $header, $matches, PREG_SET_ORDER);
 
         $conditions = [];
 
-        foreach($matches as $match) {
-
+        foreach ($matches as $match) {
             // If there was no uri specified in this match, and there were
             // already conditions parsed, we add the condition to the list of
             // conditions for the previous uri.
             if (!$match['uri'] && count($conditions)) {
-                $conditions[count($conditions)-1]['tokens'][] = [
-                    'negate' => $match['not']?true:false,
-                    'token'  => $match['token'],
-                    'etag'   => isset($match['etag'])?$match['etag']:''
+                $conditions[count($conditions) - 1]['tokens'][] = [
+                    'negate' => $match['not'] ? true : false,
+                    'token' => $match['token'],
+                    'etag' => isset($match['etag']) ? $match['etag'] : '',
                 ];
             } else {
-
                 if (!$match['uri']) {
                     $realUri = $request->getPath();
                 } else {
@@ -1587,154 +1588,95 @@ class Server extends EventEmitter {
                 }
 
                 $conditions[] = [
-                    'uri'   => $realUri,
+                    'uri' => $realUri,
                     'tokens' => [
                         [
-                            'negate' => $match['not']?true:false,
-                            'token'  => $match['token'],
-                            'etag'   => isset($match['etag'])?$match['etag']:''
-                        ]
+                            'negate' => $match['not'] ? true : false,
+                            'token' => $match['token'],
+                            'etag' => isset($match['etag']) ? $match['etag'] : '',
+                        ],
                     ],
-
                 ];
             }
-
         }
 
         return $conditions;
-
     }
 
     /**
      * Returns an array with resourcetypes for a node.
      *
-     * @param INode $node
      * @return array
      */
-    public function getResourceTypeForNode(INode $node) {
-
+    public function getResourceTypeForNode(INode $node)
+    {
         $result = [];
-        foreach($this->resourceTypeMapping as $className => $resourceType) {
-            if ($node instanceof $className) $result[] = $resourceType;
+        foreach ($this->resourceTypeMapping as $className => $resourceType) {
+            if ($node instanceof $className) {
+                $result[] = $resourceType;
+            }
         }
-        return $result;
 
+        return $result;
     }
 
     // }}}
     // {{{ XML Readers & Writers
 
-
     /**
-     * Generates a WebDAV propfind response body based on a list of nodes.
+     * Returns a callback generating a WebDAV propfind response body based on a list of nodes.
      *
      * If 'strip404s' is set to true, all 404 responses will be removed.
      *
-     * @param array $fileProperties The list with nodes
-     * @param bool strip404s
-     * @return string
+     * @param array|\Traversable $fileProperties The list with nodes
+     * @param bool               $strip404s
+     *
+     * @return callable|string
      */
-    public function generateMultiStatus(array $fileProperties, $strip404s = false) {
+    public function generateMultiStatus($fileProperties, $strip404s = false)
+    {
+        $this->emit('beforeMultiStatus', [&$fileProperties]);
 
-        $dom = new \DOMDocument('1.0','utf-8');
-        //$dom->formatOutput = true;
-        $multiStatus = $dom->createElement('d:multistatus');
-        $dom->appendChild($multiStatus);
-
-        // Adding in default namespaces
-        foreach($this->xmlNamespaces as $namespace=>$prefix) {
-
-            $multiStatus->setAttribute('xmlns:' . $prefix,$namespace);
-
+        $w = $this->xml->getWriter();
+        if (self::$streamMultiStatus) {
+            return function () use ($fileProperties, $strip404s, $w) {
+                $w->openUri('php://output');
+                $this->writeMultiStatus($w, $fileProperties, $strip404s);
+                $w->flush();
+            };
         }
+        $w->openMemory();
+        $this->writeMultiStatus($w, $fileProperties, $strip404s);
 
-        foreach($fileProperties as $entry) {
+        return $w->outputMemory();
+    }
 
+    /**
+     * @param $fileProperties
+     */
+    private function writeMultiStatus(Writer $w, $fileProperties, bool $strip404s)
+    {
+        $w->contextUri = $this->baseUri;
+        $w->startDocument();
+
+        $w->startElement('{DAV:}multistatus');
+
+        foreach ($fileProperties as $entry) {
             $href = $entry['href'];
             unset($entry['href']);
-
-            if ($strip404s && isset($entry[404])) {
+            if ($strip404s) {
                 unset($entry[404]);
             }
-
-            $response = new Property\Response($href,$entry);
-            $response->serialize($this,$multiStatus);
-
+            $response = new Xml\Element\Response(
+                ltrim($href, '/'),
+                $entry
+            );
+            $w->write([
+                'name' => '{DAV:}response',
+                'value' => $response,
+            ]);
         }
-
-        return $dom->saveXML();
-
+        $w->endElement();
+        $w->endDocument();
     }
-
-    /**
-     * This method parses a PropPatch request
-     *
-     * PropPatch changes the properties for a resource. This method
-     * returns a list of properties.
-     *
-     * The keys in the returned array contain the property name (e.g.: {DAV:}displayname,
-     * and the value contains the property value. If a property is to be removed the value
-     * will be null.
-     *
-     * @param string $body xml body
-     * @return array list of properties in need of updating or deletion
-     */
-    public function parsePropPatchRequest($body) {
-
-        //We'll need to change the DAV namespace declaration to something else in order to make it parsable
-        $dom = XMLUtil::loadDOMDocument($body);
-
-        $newProperties = [];
-
-        foreach($dom->firstChild->childNodes as $child) {
-
-            if ($child->nodeType !== XML_ELEMENT_NODE) continue;
-
-            $operation = XMLUtil::toClarkNotation($child);
-
-            if ($operation!=='{DAV:}set' && $operation!=='{DAV:}remove') continue;
-
-            $innerProperties = XMLUtil::parseProperties($child, $this->propertyMap);
-
-            foreach($innerProperties as $propertyName=>$propertyValue) {
-
-                if ($operation==='{DAV:}remove') {
-                    $propertyValue = null;
-                }
-
-                $newProperties[$propertyName] = $propertyValue;
-
-            }
-
-        }
-
-        return $newProperties;
-
-    }
-
-    /**
-     * This method parses the PROPFIND request and returns its information
-     *
-     * This will either be a list of properties, or an empty array; in which case
-     * an {DAV:}allprop was requested.
-     *
-     * @param string $body
-     * @return array
-     */
-    public function parsePropFindRequest($body) {
-
-        // If the propfind body was empty, it means IE is requesting 'all' properties
-        if (!$body) return [];
-
-        $dom = XMLUtil::loadDOMDocument($body);
-        $elem = $dom->getElementsByTagNameNS('urn:DAV','propfind')->item(0);
-        if (is_null($elem)) throw new Exception\UnsupportedMediaType('We could not find a {DAV:}propfind element in the xml request body');
-
-        return array_keys(XMLUtil::parseProperties($elem));
-
-    }
-
-    // }}}
-
 }
-

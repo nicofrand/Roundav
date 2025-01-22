@@ -1,55 +1,51 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\DAV;
 
 /**
- * Node class
+ * Node class.
  *
  * This is a helper class, that should aid in getting nodes setup.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-abstract class Node implements INode {
-
+abstract class Node implements INode
+{
     /**
-     * Returns the last modification time
+     * Returns the last modification time as a unix timestamp.
      *
-     * In this case, it will simply return the current time
+     * If the information is not available, return null.
      *
      * @return int
      */
-    public function getLastModified() {
-
-        return time();
-
+    public function getLastModified()
+    {
+        return null;
     }
 
     /**
-     * Deletes the current node
+     * Deletes the current node.
      *
-     * @throws Sabre\DAV\Exception\Forbidden
-     * @return void
+     * @throws Exception\Forbidden
      */
-    public function delete() {
-
+    public function delete()
+    {
         throw new Exception\Forbidden('Permission denied to delete node');
-
     }
 
     /**
-     * Renames the node
+     * Renames the node.
      *
-     * @throws Sabre\DAV\Exception\Forbidden
      * @param string $name The new name
-     * @return void
+     *
+     * @throws Exception\Forbidden
      */
-    public function setName($name) {
-
+    public function setName($name)
+    {
         throw new Exception\Forbidden('Permission denied to rename file');
-
     }
-
 }
-

@@ -27,6 +27,7 @@
 
 use Sabre\DAV\Client;
 use League\Flysystem\Filesystem;
+use League\FlySystem\StorageAttributes;
 use League\Flysystem\WebDAV\WebDAVAdapter;
 
 include_once(__DIR__.'/vendor/autoload.php');
@@ -43,6 +44,8 @@ class roundrive_files_engine
     private $rc;
     private $timeout = 600;
     private $sort_cols = array('name', 'mtime', 'size');
+
+    private $file_data = [];
 
     /**
      *
@@ -720,12 +723,9 @@ class roundrive_files_engine
         $file = str_replace($this->plugin->gettext('files'), '/', urldecode(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET)));
 
         try {
-          $fsfile = $this->filesystem->get($file);
-          $metadata = $fsfile->getMetadata();
-          //$this->file_data['filename'] = urldecode($metadata['filename']);
-          $this->file_data['type'] = $metadata['mimetype'];
-          $this->file_data['size'] = $metadata['size'];
-          $this->file_data['mtime'] = $metadata['timestamp'];
+          $this->file_data['type'] = $this->filesystem->mimeType($file);
+          $this->file_data['size'] = $this->filesystem->fileSize($file);
+          $this->file_data['mtime'] = $this->filesystem->lastModified($file);
         }
         catch (Exception $e) {
           rcube::raise_error(array(
@@ -804,7 +804,7 @@ class roundrive_files_engine
                 $dest = str_replace($this->plugin->gettext('files'), '/', $dest);
               }
               $file = $this->encoderawpath($dest .  '/' . $attach_name);
-              $this->filesystem->put($file, file_get_contents($path));
+              $this->filesystem->write($file, file_get_contents($path));
               $files[] = $attach_name;
             }
             catch (Exception $e) {
@@ -875,10 +875,10 @@ class roundrive_files_engine
 
             try {
               $file = $this->encoderawpath($file);
-              $file_params = $this->filesystem->getMetadata($file);
+
               // save attachment to file
               if ($fp = fopen($path, 'w+')) {
-                fwrite($fp, $this->filesystem->read($file_params['path']));
+                fwrite($fp, $this->filesystem->read($file));
               }
               else {
                 $errors[] = "Can't open temporary file";
@@ -901,9 +901,9 @@ class roundrive_files_engine
 
             $attachment = array(
                 'path' => $path,
-                'size' => $file_params['size'],
-                'name' => $this->get_filename_from_path(urldecode($file_params['path'])),
-                'mimetype' => $file_params['mimetype'],
+                'size' => $this->filesystem->fileSize($file),
+                'name' => $this->get_filename_from_path(urldecode($file)),
+                'mimetype' => $this->filesystem->mimeType($file),
                 'group' => $COMPOSE_ID,
             );
 
@@ -970,15 +970,14 @@ class roundrive_files_engine
               'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
       );
       try {
-        $folders = array();
-        $fsdirs = $this->filesystem->listContents('/', true);
+        $filesPrefix = $this->plugin->gettext('files');
+        $folders = $this->filesystem->listContents('/', true)
+            ->filter(fn (StorageAttributes $attributes) => $attributes->isDir())
+            ->map(fn (StorageAttributes $attributes) => $filesPrefix .'/'.urldecode($attributes->path()))
+            ->toArray();
 
-        $folders[] = $this->plugin->gettext('files');
-        foreach ($fsdirs as $fsdir) {
-          if ($fsdir['type'] == 'dir') {
-            $folders[] = $this->plugin->gettext('files').'/'.urldecode($fsdir['path']);
-          }
-        }
+        array_unshift($folders, $filesPrefix);
+
         $result['result'] = $folders;
       }
       catch (Exception $e) {
@@ -999,29 +998,37 @@ class roundrive_files_engine
               'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
       );
       $search = rcube_utils::get_input_value('search', rcube_utils::INPUT_GET);
+      if (!empty($search)) {
+        $search = is_array($search) && isset($search['name']) ? strtolower($search['name']) : strtolower($search);
+      }
+
       try {
-        $folder = str_replace($this->plugin->gettext('files'), '/', rcube_utils::get_input_value('folder', rcube_utils::INPUT_GET));
+        $filesPrefix = $this->plugin->gettext('files');
+        $folder = str_replace($filesPrefix, '/', rcube_utils::get_input_value('folder', rcube_utils::INPUT_GET));
         $folder = $this->encoderawpath($folder);
-        $files = array();
-        $fsfiles = $this->filesystem->listContents($folder, false);
-        foreach ($fsfiles as $fsfile) {
-          if ($fsfile['type'] != 'dir') {
+        $files = [];
+
+        $fsFiles = $this->filesystem->listContents($folder, false)
+            ->filter(fn (StorageAttributes $attributes) => $attributes->isFile());
+
+        foreach ($fsFiles as $fsfile) {
+            $basename = urldecode(basename($fsfile->path()));
+
             if (!empty($search)) {
-              $search = is_array($search) && isset($search['name']) ? strtolower($search['name']) : strtolower($search);
-              $name = strtolower(urldecode($fsfile['basename']));
+              $name = strtolower($basename);
+
               if (strpos($name, $search) === false) {
                 continue;
               }
             }
-            $key = urlencode($this->plugin->gettext('files'). '/'. urldecode($fsfile['path']));
-            $data = array(
-                    'name' => urldecode($fsfile['basename']),
-                    'type' => $fsfile['mimetype'],
-                    'size' => $fsfile['size'],
-                    'mtime' => $fsfile['timestamp'],
+
+            $key = urlencode($filesPrefix. '/'. urldecode($fsfile['path']));
+            $files[$key] = array(
+                'name' => $basename,
+                'type' => $fsfile['mimetype'],
+                'size' => $fsfile['size'],
+                'mtime' => $fsfile['timestamp'],
             );
-            $files[$key] = $data;
-          }
         }
         $result['result'] = $files;
       }
@@ -1044,7 +1051,7 @@ class roundrive_files_engine
       try {
         $folder = str_replace($this->plugin->gettext('files'), '/', urldecode(rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST)));
         $folder = $this->encoderawpath($folder);
-        $this->filesystem->createDir($folder);
+        $this->filesystem->createDirectory($folder);
       }
       catch (Exception $e) {
         $result['status'] = 'NOK';
@@ -1060,10 +1067,10 @@ class roundrive_files_engine
     protected function action_file_get() {
       try {
         $file = str_replace($this->plugin->gettext('files'), '/', rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
-        $metadata = $this->filesystem->getMetadata($file);
-        header('Content-Type: ' . $metadata['mimetype']);
-        header('Content-disposition: attachment; filename=' . $this->get_filename_from_path(urldecode($metadata['path'])));
-        header('Content-Length: ' . $metadata['size']);
+
+        header('Content-Type: ' . $this->filesystem->mimeType($file));
+        header('Content-disposition: attachment; filename=' . $this->get_filename_from_path(urldecode($file)));
+        header('Content-Length: ' . $this->filesystem->fileSize($file));
         echo $this->filesystem->read($file);
       }
       catch (Exception $e) {

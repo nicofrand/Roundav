@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\CalDAV\Backend;
 
 use Sabre\DAV;
@@ -7,12 +9,12 @@ use Sabre\DAV;
 /**
  * Every CalDAV backend must at least implement this interface.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-interface SubscriptionSupport extends BackendInterface {
-
+interface SubscriptionSupport extends BackendInterface
+{
     /**
      * Returns a list of subscriptions for a principal.
      *
@@ -43,6 +45,7 @@ interface SubscriptionSupport extends BackendInterface {
      *    default components).
      *
      * @param string $principalUri
+     *
      * @return array
      */
     public function getSubscriptionsForUser($principalUri);
@@ -55,13 +58,13 @@ interface SubscriptionSupport extends BackendInterface {
      *
      * @param string $principalUri
      * @param string $uri
-     * @param array $properties
+     *
      * @return mixed
      */
     public function createSubscription($principalUri, $uri, array $properties);
 
     /**
-     * Updates a subscription
+     * Updates a subscription.
      *
      * The list of mutations is stored in a Sabre\DAV\PropPatch object.
      * To do the actual updates, you must tell this object which properties
@@ -70,11 +73,10 @@ interface SubscriptionSupport extends BackendInterface {
      * Calling the handle method is like telling the PropPatch object "I
      * promise I can handle updating this property".
      *
-     * Read the PropPatch documenation for more info and examples.
+     * Read the PropPatch documentation for more info and examples.
      *
-     * @param mixed $subscriptionId
+     * @param mixed                $subscriptionId
      * @param \Sabre\DAV\PropPatch $propPatch
-     * @return void
      */
     public function updateSubscription($subscriptionId, DAV\PropPatch $propPatch);
 
@@ -82,8 +84,6 @@ interface SubscriptionSupport extends BackendInterface {
      * Deletes a subscription.
      *
      * @param mixed $subscriptionId
-     * @return void
      */
     public function deleteSubscription($subscriptionId);
-
 }

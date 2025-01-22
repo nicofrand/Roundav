@@ -1,105 +1,108 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\CalDAV\Principal;
+
 use Sabre\DAV;
 use Sabre\DAVACL;
 
 /**
- * CalDAV principal
+ * CalDAV principal.
  *
  * This is a standard user-principal for CalDAV. This principal is also a
  * collection and returns the caldav-proxy-read and caldav-proxy-write child
  * principals.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-class User extends DAVACL\Principal implements DAV\ICollection {
-
+class User extends DAVACL\Principal implements DAV\ICollection
+{
     /**
-     * Creates a new file in the directory
+     * Creates a new file in the directory.
      *
-     * @param string $name Name of the file
-     * @param resource $data Initial payload, passed as a readable stream resource.
+     * @param string   $name Name of the file
+     * @param resource $data initial payload, passed as a readable stream resource
+     *
      * @throws DAV\Exception\Forbidden
-     * @return void
      */
-    public function createFile($name, $data = null) {
-
-        throw new DAV\Exception\Forbidden('Permission denied to create file (filename ' . $name . ')');
-
+    public function createFile($name, $data = null)
+    {
+        throw new DAV\Exception\Forbidden('Permission denied to create file (filename '.$name.')');
     }
 
     /**
-     * Creates a new subdirectory
+     * Creates a new subdirectory.
      *
      * @param string $name
+     *
      * @throws DAV\Exception\Forbidden
-     * @return void
      */
-    public function createDirectory($name) {
-
+    public function createDirectory($name)
+    {
         throw new DAV\Exception\Forbidden('Permission denied to create directory');
-
     }
 
     /**
-     * Returns a specific child node, referenced by its name
+     * Returns a specific child node, referenced by its name.
      *
      * @param string $name
+     *
      * @return DAV\INode
      */
-    public function getChild($name) {
-
-        $principal = $this->principalBackend->getPrincipalByPath($this->getPrincipalURL() . '/' . $name);
+    public function getChild($name)
+    {
+        $principal = $this->principalBackend->getPrincipalByPath($this->getPrincipalURL().'/'.$name);
         if (!$principal) {
-            throw new DAV\Exception\NotFound('Node with name ' . $name . ' was not found');
+            throw new DAV\Exception\NotFound('Node with name '.$name.' was not found');
         }
-        if ($name === 'calendar-proxy-read')
+        if ('calendar-proxy-read' === $name) {
             return new ProxyRead($this->principalBackend, $this->principalProperties);
+        }
 
-        if ($name === 'calendar-proxy-write')
+        if ('calendar-proxy-write' === $name) {
             return new ProxyWrite($this->principalBackend, $this->principalProperties);
+        }
 
-        throw new DAV\Exception\NotFound('Node with name ' . $name . ' was not found');
-
+        throw new DAV\Exception\NotFound('Node with name '.$name.' was not found');
     }
 
     /**
-     * Returns an array with all the child nodes
+     * Returns an array with all the child nodes.
      *
-    * @return DAV\INode[]
+     * @return DAV\INode[]
      */
-    public function getChildren() {
-
-        $r = array();
-        if ($this->principalBackend->getPrincipalByPath($this->getPrincipalURL() . '/calendar-proxy-read')) {
+    public function getChildren()
+    {
+        $r = [];
+        if ($this->principalBackend->getPrincipalByPath($this->getPrincipalURL().'/calendar-proxy-read')) {
             $r[] = new ProxyRead($this->principalBackend, $this->principalProperties);
         }
-        if ($this->principalBackend->getPrincipalByPath($this->getPrincipalURL() . '/calendar-proxy-write')) {
+        if ($this->principalBackend->getPrincipalByPath($this->getPrincipalURL().'/calendar-proxy-write')) {
             $r[] = new ProxyWrite($this->principalBackend, $this->principalProperties);
         }
 
         return $r;
-
     }
 
     /**
-     * Returns whether or not the child node exists
+     * Returns whether or not the child node exists.
      *
      * @param string $name
+     *
      * @return bool
      */
-    public function childExists($name) {
-
+    public function childExists($name)
+    {
         try {
             $this->getChild($name);
+
             return true;
         } catch (DAV\Exception\NotFound $e) {
             return false;
         }
-
     }
 
     /**
@@ -114,21 +117,20 @@ class User extends DAVACL\Principal implements DAV\ICollection {
      *
      * @return array
      */
-    public function getACL() {
-
+    public function getACL()
+    {
         $acl = parent::getACL();
-        $acl[] = array(
+        $acl[] = [
             'privilege' => '{DAV:}read',
-            'principal' => $this->principalProperties['uri'] . '/calendar-proxy-read',
+            'principal' => $this->principalProperties['uri'].'/calendar-proxy-read',
             'protected' => true,
-        );
-        $acl[] = array(
+        ];
+        $acl[] = [
             'privilege' => '{DAV:}read',
-            'principal' => $this->principalProperties['uri'] . '/calendar-proxy-write',
+            'principal' => $this->principalProperties['uri'].'/calendar-proxy-write',
             'protected' => true,
-        );
+        ];
+
         return $acl;
-
     }
-
 }

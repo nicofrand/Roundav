@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\CardDAV\Backend;
 
 /**
- * CardDAV Backend Interface
+ * CardDAV Backend Interface.
  *
  * Any CardDAV backend must implement this interface.
  *
@@ -11,12 +13,12 @@ namespace Sabre\CardDAV\Backend;
  * class. The value of the addressBookId is completely up to you, it can be any
  * arbitrary value you can use as an unique identifier.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-interface BackendInterface {
-
+interface BackendInterface
+{
     /**
      * Returns the list of addressbooks for a specific user.
      *
@@ -32,6 +34,7 @@ interface BackendInterface {
      *   {http://calendarserver.org/ns/}getctag
      *
      * @param string $principalUri
+     *
      * @return array
      */
     public function getAddressBooksForUser($principalUri);
@@ -46,29 +49,29 @@ interface BackendInterface {
      * Calling the handle method is like telling the PropPatch object "I
      * promise I can handle updating this property".
      *
-     * Read the PropPatch documenation for more info and examples.
+     * Read the PropPatch documentation for more info and examples.
      *
      * @param string $addressBookId
-     * @param \Sabre\DAV\PropPatch $propPatch
-     * @return void
      */
     public function updateAddressBook($addressBookId, \Sabre\DAV\PropPatch $propPatch);
 
     /**
-     * Creates a new address book
+     * Creates a new address book.
+     *
+     * This method should return the id of the new address book. The id can be
+     * in any format, including ints, strings, arrays or objects.
      *
      * @param string $principalUri
-     * @param string $url Just the 'basename' of the url.
-     * @param array $properties
-     * @return void
+     * @param string $url          just the 'basename' of the url
+     *
+     * @return mixed
      */
     public function createAddressBook($principalUri, $url, array $properties);
 
     /**
-     * Deletes an entire addressbook and all its contents
+     * Deletes an entire addressbook and all its contents.
      *
      * @param mixed $addressBookId
-     * @return void
      */
     public function deleteAddressBook($addressBookId);
 
@@ -85,24 +88,26 @@ interface BackendInterface {
      *   * size - The size of the card in bytes.
      *
      * If these last two properties are provided, less time will be spent
-     * calculating them. If they are specified, you can also ommit carddata.
+     * calculating them. If they are specified, you can also omit carddata.
      * This may speed up certain requests, especially with large cards.
      *
      * @param mixed $addressbookId
+     *
      * @return array
      */
     public function getCards($addressbookId);
 
     /**
-     * Returns a specfic card.
+     * Returns a specific card.
      *
      * The same set of properties must be returned as with getCards. The only
      * exception is that 'carddata' is absolutely required.
      *
      * If the card does not exist, you must return false.
      *
-     * @param mixed $addressBookId
+     * @param mixed  $addressBookId
      * @param string $cardUri
+     *
      * @return array
      */
     public function getCard($addressBookId, $cardUri);
@@ -116,7 +121,7 @@ interface BackendInterface {
      * If the backend supports this, it may allow for some speed-ups.
      *
      * @param mixed $addressBookId
-     * @param array $uris
+     *
      * @return array
      */
     public function getMultipleCards($addressBookId, array $uris);
@@ -141,9 +146,10 @@ interface BackendInterface {
      *
      * If you don't return an ETag, you can just return null.
      *
-     * @param mixed $addressBookId
+     * @param mixed  $addressBookId
      * @param string $cardUri
      * @param string $cardData
+     *
      * @return string|null
      */
     public function createCard($addressBookId, $cardUri, $cardData);
@@ -168,20 +174,21 @@ interface BackendInterface {
      *
      * If you don't return an ETag, you can just return null.
      *
-     * @param mixed $addressBookId
+     * @param mixed  $addressBookId
      * @param string $cardUri
      * @param string $cardData
+     *
      * @return string|null
      */
     public function updateCard($addressBookId, $cardUri, $cardData);
 
     /**
-     * Deletes a card
+     * Deletes a card.
      *
-     * @param mixed $addressBookId
+     * @param mixed  $addressBookId
      * @param string $cardUri
+     *
      * @return bool
      */
     public function deleteCard($addressBookId, $cardUri);
-
 }

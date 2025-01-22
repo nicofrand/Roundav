@@ -1,63 +1,93 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\DAV\Auth\Backend;
-use Sabre\DAV;
+
+use Sabre\HTTP\RequestInterface;
+use Sabre\HTTP\ResponseInterface;
 
 /**
- * Apache authenticator
+ * Apache (or NGINX) authenticator.
  *
  * This authentication backend assumes that authentication has been
- * configured in apache, rather than within SabreDAV.
+ * configured in apache (or NGINX), rather than within SabreDAV.
  *
- * Make sure apache is properly configured for this to work.
+ * Make sure apache (or NGINX) is properly configured for this to work.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-class Apache implements BackendInterface {
-
+class Apache implements BackendInterface
+{
     /**
-     * Current apache user
+     * This is the prefix that will be used to generate principal urls.
      *
      * @var string
      */
-    protected $remoteUser;
+    protected $principalPrefix = 'principals/';
 
     /**
-     * Authenticates the user based on the current request.
+     * When this method is called, the backend must check if authentication was
+     * successful.
      *
-     * If authentication is successful, true must be returned.
-     * If authentication fails, an exception must be thrown.
+     * The returned value must be one of the following
      *
-     * @param DAV\Server $server
-     * @param string $realm
-     * @return bool
+     * [true, "principals/username"]
+     * [false, "reason for failure"]
+     *
+     * If authentication was successful, it's expected that the authentication
+     * backend returns a so-called principal url.
+     *
+     * Examples of a principal url:
+     *
+     * principals/admin
+     * principals/user1
+     * principals/users/joe
+     * principals/uid/123457
+     *
+     * If you don't use WebDAV ACL (RFC3744) we recommend that you simply
+     * return a string such as:
+     *
+     * principals/users/[username]
+     *
+     * @return array
      */
-    public function authenticate(DAV\Server $server, $realm) {
-
-        $remoteUser = $server->httpRequest->getRawServerValue('REMOTE_USER');
+    public function check(RequestInterface $request, ResponseInterface $response)
+    {
+        $remoteUser = $request->getRawServerValue('REMOTE_USER');
         if (is_null($remoteUser)) {
-            throw new DAV\Exception('We did not receive the $_SERVER[REMOTE_USER] property. This means that apache might have been misconfigured');
+            $remoteUser = $request->getRawServerValue('REDIRECT_REMOTE_USER');
+        }
+        if (is_null($remoteUser)) {
+            $remoteUser = $request->getRawServerValue('PHP_AUTH_USER');
+        }
+        if (is_null($remoteUser)) {
+            return [false, 'No REMOTE_USER, REDIRECT_REMOTE_USER, or PHP_AUTH_USER property was found in the PHP $_SERVER super-global. This likely means your server is not configured correctly'];
         }
 
-        $this->remoteUser = $remoteUser;
-        return true;
-
+        return [true, $this->principalPrefix.$remoteUser];
     }
 
     /**
-     * Returns information about the currently logged in user.
+     * This method is called when a user could not be authenticated, and
+     * authentication was required for the current request.
      *
-     * If nobody is currently logged in, this method should return null.
+     * This gives you the opportunity to set authentication headers. The 401
+     * status code will already be set.
      *
-     * @return array|null
+     * In this case of Basic Auth, this would for example mean that the
+     * following header needs to be set:
+     *
+     * $response->addHeader('WWW-Authenticate', 'Basic realm=SabreDAV');
+     *
+     * Keep in mind that in the case of multiple authentication backends, other
+     * WWW-Authenticate headers may already have been set, and you'll want to
+     * append your own WWW-Authenticate header instead of overwriting the
+     * existing one.
      */
-    public function getCurrentUser() {
-
-        return $this->remoteUser;
-
+    public function challenge(RequestInterface $request, ResponseInterface $response)
+    {
     }
-
 }
-

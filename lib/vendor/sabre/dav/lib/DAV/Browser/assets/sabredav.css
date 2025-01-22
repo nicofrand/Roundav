@@ -94,13 +94,14 @@ header a {
 }
 .logo img {
   vertical-align: middle;
+  border: 0;
 }
-input, button {
+input, button, select {
     font: inherit;
     color: inherit;
 }
 
-input[type=text] {
+input[type=text], select {
   border: 1px solid #bbbbbb;
   line-height: 22px;
   padding: 5px 10px;
@@ -174,6 +175,11 @@ section table {
   background: #eeeeee;
 }
 
+.propTable pre {
+    font-size: 80%;
+    background: #f8f8f8;
+}
+
 .actions {
   border: 1px dotted #76baa6;
   padding: 20px;
@@ -194,7 +200,7 @@ section table {
     line-height: 40px;
 }
 
-.actions input[type=text] {
+.actions input[type=text], select {
     width: 450px;
 }
 
@@ -207,4 +213,16 @@ footer {
   padding: 50px 0;
   font-size: 80%;
   text-align: center;
+}
+
+ul.tree {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+ul.tree ul {
+    list-style: none;
+    padding-left: 10px;
+    border-left: 4px solid #ccc;
 }

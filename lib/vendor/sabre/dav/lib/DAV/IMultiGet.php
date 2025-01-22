@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\DAV;
 
 /**
- * IMultiGet
+ * IMultiGet.
  *
  * This interface adds a tiny bit of functionality to collections.
  *
@@ -16,20 +18,21 @@ namespace Sabre\DAV;
  *
  * The MultiGet interface is used by the server in these cases.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-interface IMultiGet extends ICollection {
-
+interface IMultiGet extends ICollection
+{
     /**
      * This method receives a list of paths in it's first argument.
      * It must return an array with Node objects.
      *
      * If any children are not found, you do not have to return them.
      *
+     * @param string[] $paths
+     *
      * @return array
      */
     public function getMultipleChildren(array $paths);
-
 }

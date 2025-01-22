@@ -1,94 +1,84 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\CardDAV\Backend;
 
 use Sabre\CardDAV;
 use Sabre\DAV;
+use Sabre\DAV\PropPatch;
 
 /**
- * PDO CardDAV backend
+ * PDO CardDAV backend.
  *
  * This CardDAV backend uses PDO to store addressbooks
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-class PDO extends AbstractBackend implements SyncSupport {
-
+class PDO extends AbstractBackend implements SyncSupport
+{
     /**
-     * PDO connection
+     * PDO connection.
      *
      * @var PDO
      */
     protected $pdo;
 
     /**
-     * The PDO table name used to store addressbooks
+     * The PDO table name used to store addressbooks.
      */
-    protected $addressBooksTableName;
+    public $addressBooksTableName = 'addressbooks';
 
     /**
-     * The PDO table name used to store cards
+     * The PDO table name used to store cards.
      */
-    protected $cardsTableName;
+    public $cardsTableName = 'cards';
 
     /**
      * The table name that will be used for tracking changes in address books.
      *
      * @var string
      */
-    protected $addressBookChangesTableName;
+    public $addressBookChangesTableName = 'addressbookchanges';
 
     /**
-     * Sets up the object
-     *
-     * @param \PDO $pdo
-     * @param string $addressBooksTableName
-     * @param string $cardsTableName
+     * Sets up the object.
      */
-    public function __construct(\PDO $pdo, $addressBooksTableName = 'addressbooks', $cardsTableName = 'cards', $addressBookChangesTableName = 'addressbookchanges') {
-
+    public function __construct(\PDO $pdo)
+    {
         $this->pdo = $pdo;
-        $this->addressBooksTableName = $addressBooksTableName;
-        $this->cardsTableName = $cardsTableName;
-        $this->addressBookChangesTableName = $addressBookChangesTableName;
-
     }
 
     /**
      * Returns the list of addressbooks for a specific user.
      *
      * @param string $principalUri
+     *
      * @return array
      */
-    public function getAddressBooksForUser($principalUri) {
-
+    public function getAddressBooksForUser($principalUri)
+    {
         $stmt = $this->pdo->prepare('SELECT id, uri, displayname, principaluri, description, synctoken FROM '.$this->addressBooksTableName.' WHERE principaluri = ?');
-        $stmt->execute(array($principalUri));
+        $stmt->execute([$principalUri]);
 
-        $addressBooks = array();
+        $addressBooks = [];
 
-        foreach($stmt->fetchAll() as $row) {
-
-            $addressBooks[] = array(
-                'id'  => $row['id'],
+        foreach ($stmt->fetchAll() as $row) {
+            $addressBooks[] = [
+                'id' => $row['id'],
                 'uri' => $row['uri'],
                 'principaluri' => $row['principaluri'],
                 '{DAV:}displayname' => $row['displayname'],
-                '{' . CardDAV\Plugin::NS_CARDDAV . '}addressbook-description' => $row['description'],
+                '{'.CardDAV\Plugin::NS_CARDDAV.'}addressbook-description' => $row['description'],
                 '{http://calendarserver.org/ns/}getctag' => $row['synctoken'],
-                '{' . CardDAV\Plugin::NS_CARDDAV . '}supported-address-data' =>
-                    new CardDAV\Property\SupportedAddressData(),
-                '{http://sabredav.org/ns}sync-token' => $row['synctoken']?$row['synctoken']:'0',
-            );
-
+                '{http://sabredav.org/ns}sync-token' => $row['synctoken'] ? $row['synctoken'] : '0',
+            ];
         }
 
         return $addressBooks;
-
     }
-
 
     /**
      * Updates properties for an address book.
@@ -100,114 +90,106 @@ class PDO extends AbstractBackend implements SyncSupport {
      * Calling the handle method is like telling the PropPatch object "I
      * promise I can handle updating this property".
      *
-     * Read the PropPatch documenation for more info and examples.
+     * Read the PropPatch documentation for more info and examples.
      *
      * @param string $addressBookId
-     * @param \Sabre\DAV\PropPatch $propPatch
-     * @return void
      */
-    public function updateAddressBook($addressBookId, \Sabre\DAV\PropPatch $propPatch) {
-
+    public function updateAddressBook($addressBookId, PropPatch $propPatch)
+    {
         $supportedProperties = [
             '{DAV:}displayname',
-            '{' . CardDAV\Plugin::NS_CARDDAV . '}addressbook-description',
+            '{'.CardDAV\Plugin::NS_CARDDAV.'}addressbook-description',
         ];
 
-        $propPatch->handle($supportedProperties, function($mutations) use ($addressBookId) {
-
+        $propPatch->handle($supportedProperties, function ($mutations) use ($addressBookId) {
             $updates = [];
-            foreach($mutations as $property=>$newValue) {
-
-                switch($property) {
-                    case '{DAV:}displayname' :
+            foreach ($mutations as $property => $newValue) {
+                switch ($property) {
+                    case '{DAV:}displayname':
                         $updates['displayname'] = $newValue;
                         break;
-                    case '{' . CardDAV\Plugin::NS_CARDDAV . '}addressbook-description' :
+                    case '{'.CardDAV\Plugin::NS_CARDDAV.'}addressbook-description':
                         $updates['description'] = $newValue;
                         break;
                 }
             }
-            $query = 'UPDATE ' . $this->addressBooksTableName . ' SET ';
+            $query = 'UPDATE '.$this->addressBooksTableName.' SET ';
             $first = true;
-            foreach($updates as $key=>$value) {
+            foreach ($updates as $key => $value) {
                 if ($first) {
                     $first = false;
                 } else {
-                    $query.=', ';
+                    $query .= ', ';
                 }
-                $query.=' `' . $key . '` = :' . $key . ' ';
+                $query .= ' '.$key.' = :'.$key.' ';
             }
-            $query.=' WHERE id = :addressbookid';
+            $query .= ' WHERE id = :addressbookid';
 
             $stmt = $this->pdo->prepare($query);
             $updates['addressbookid'] = $addressBookId;
 
             $stmt->execute($updates);
 
-            $this->addChange($addressBookId, "", 2);
+            $this->addChange($addressBookId, '', 2);
 
             return true;
-
         });
-
     }
 
     /**
-     * Creates a new address book
+     * Creates a new address book.
      *
      * @param string $principalUri
-     * @param string $url Just the 'basename' of the url.
-     * @param array $properties
-     * @return void
+     * @param string $url          just the 'basename' of the url
+     *
+     * @return int Last insert id
      */
-    public function createAddressBook($principalUri, $url, array $properties) {
-
-        $values = array(
+    public function createAddressBook($principalUri, $url, array $properties)
+    {
+        $values = [
             'displayname' => null,
             'description' => null,
             'principaluri' => $principalUri,
             'uri' => $url,
-        );
+        ];
 
-        foreach($properties as $property=>$newValue) {
-
-            switch($property) {
-                case '{DAV:}displayname' :
+        foreach ($properties as $property => $newValue) {
+            switch ($property) {
+                case '{DAV:}displayname':
                     $values['displayname'] = $newValue;
                     break;
-                case '{' . CardDAV\Plugin::NS_CARDDAV . '}addressbook-description' :
+                case '{'.CardDAV\Plugin::NS_CARDDAV.'}addressbook-description':
                     $values['description'] = $newValue;
                     break;
-                default :
-                    throw new DAV\Exception\BadRequest('Unknown property: ' . $property);
+                default:
+                    throw new DAV\Exception\BadRequest('Unknown property: '.$property);
             }
-
         }
 
-        $query = 'INSERT INTO ' . $this->addressBooksTableName . ' (uri, displayname, description, principaluri, synctoken) VALUES (:uri, :displayname, :description, :principaluri, 1)';
+        $query = 'INSERT INTO '.$this->addressBooksTableName.' (uri, displayname, description, principaluri, synctoken) VALUES (:uri, :displayname, :description, :principaluri, 1)';
         $stmt = $this->pdo->prepare($query);
         $stmt->execute($values);
-        return $this->pdo->lastInsertId();
 
+        return $this->pdo->lastInsertId(
+            $this->addressBooksTableName.'_id_seq'
+        );
     }
 
     /**
-     * Deletes an entire addressbook and all its contents
+     * Deletes an entire addressbook and all its contents.
      *
      * @param int $addressBookId
-     * @return void
      */
-    public function deleteAddressBook($addressBookId) {
-
-        $stmt = $this->pdo->prepare('DELETE FROM ' . $this->cardsTableName . ' WHERE addressbookid = ?');
+    public function deleteAddressBook($addressBookId)
+    {
+        $stmt = $this->pdo->prepare('DELETE FROM '.$this->cardsTableName.' WHERE addressbookid = ?');
         $stmt->execute([$addressBookId]);
 
-        $stmt = $this->pdo->prepare('DELETE FROM ' . $this->addressBooksTableName . ' WHERE id = ?');
+        $stmt = $this->pdo->prepare('DELETE FROM '.$this->addressBooksTableName.' WHERE id = ?');
         $stmt->execute([$addressBookId]);
 
-        $stmt = $this->pdo->prepare('DELETE FROM '.$this->addressBookChangesTableName.' WHERE id = ?');
+        $stmt = $this->pdo->prepare('DELETE FROM '.$this->addressBookChangesTableName.' WHERE addressbookid = ?');
         $stmt->execute([$addressBookId]);
-
     }
 
     /**
@@ -223,50 +205,56 @@ class PDO extends AbstractBackend implements SyncSupport {
      *   * size - The size of the card in bytes.
      *
      * If these last two properties are provided, less time will be spent
-     * calculating them. If they are specified, you can also ommit carddata.
+     * calculating them. If they are specified, you can also omit carddata.
      * This may speed up certain requests, especially with large cards.
      *
      * @param mixed $addressbookId
+     *
      * @return array
      */
-    public function getCards($addressbookId) {
-
-        $stmt = $this->pdo->prepare('SELECT id, uri, lastmodified, etag, size FROM ' . $this->cardsTableName . ' WHERE addressbookid = ?');
-        $stmt->execute(array($addressbookId));
+    public function getCards($addressbookId)
+    {
+        $stmt = $this->pdo->prepare('SELECT id, uri, lastmodified, etag, size FROM '.$this->cardsTableName.' WHERE addressbookid = ?');
+        $stmt->execute([$addressbookId]);
 
         $result = [];
-        while($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-            $row['etag'] = '"' . $row['etag'] . '"';
+        while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+            $row['etag'] = '"'.$row['etag'].'"';
+            $row['lastmodified'] = (int) $row['lastmodified'];
             $result[] = $row;
         }
-        return $result;
 
+        return $result;
     }
 
     /**
-     * Returns a specfic card.
+     * Returns a specific card.
      *
      * The same set of properties must be returned as with getCards. The only
      * exception is that 'carddata' is absolutely required.
      *
      * If the card does not exist, you must return false.
      *
-     * @param mixed $addressBookId
+     * @param mixed  $addressBookId
      * @param string $cardUri
+     *
      * @return array
      */
-    public function getCard($addressBookId, $cardUri) {
-
-        $stmt = $this->pdo->prepare('SELECT id, carddata, uri, lastmodified, etag, size FROM ' . $this->cardsTableName . ' WHERE addressbookid = ? AND uri = ? LIMIT 1');
-        $stmt->execute(array($addressBookId, $cardUri));
+    public function getCard($addressBookId, $cardUri)
+    {
+        $stmt = $this->pdo->prepare('SELECT id, carddata, uri, lastmodified, etag, size FROM '.$this->cardsTableName.' WHERE addressbookid = ? AND uri = ? LIMIT 1');
+        $stmt->execute([$addressBookId, $cardUri]);
 
         $result = $stmt->fetch(\PDO::FETCH_ASSOC);
 
-        if (!$result) return false;
+        if (!$result) {
+            return false;
+        }
 
-        $result['etag'] = '"' . $result['etag'] . '"';
+        $result['etag'] = '"'.$result['etag'].'"';
+        $result['lastmodified'] = (int) $result['lastmodified'];
+
         return $result;
-
     }
 
     /**
@@ -278,29 +266,26 @@ class PDO extends AbstractBackend implements SyncSupport {
      * If the backend supports this, it may allow for some speed-ups.
      *
      * @param mixed $addressBookId
-     * @param array $uris
+     *
      * @return array
      */
-    public function getMultipleCards($addressBookId, array $uris) {
-
-        return array_map(function($uri) use ($addressBookId) {
-            return $this->getCard($addressBookId, $uri);
-        }, $uris);
-
-        $query = 'SELECT id, uri, lastmodified, etag, size FROM ' . $this->cardsTableName . ' WHERE addressbookid = ? AND uri = IN (';
+    public function getMultipleCards($addressBookId, array $uris)
+    {
+        $query = 'SELECT id, uri, lastmodified, etag, size, carddata FROM '.$this->cardsTableName.' WHERE addressbookid = ? AND uri IN (';
         // Inserting a whole bunch of question marks
-        $query.=implode(',', array_fill(0, count($uris), '?'));
-        $query.=')';
+        $query .= implode(',', array_fill(0, count($uris), '?'));
+        $query .= ')';
 
         $stmt = $this->pdo->prepare($query);
         $stmt->execute(array_merge([$addressBookId], $uris));
         $result = [];
-        while($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-            $row['etag'] = '"' . $row['etag'] . '"';
+        while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
+            $row['etag'] = '"'.$row['etag'].'"';
+            $row['lastmodified'] = (int) $row['lastmodified'];
             $result[] = $row;
         }
-        return $result;
 
+        return $result;
     }
 
     /**
@@ -323,18 +308,19 @@ class PDO extends AbstractBackend implements SyncSupport {
      *
      * If you don't return an ETag, you can just return null.
      *
-     * @param mixed $addressBookId
+     * @param mixed  $addressBookId
      * @param string $cardUri
      * @param string $cardData
+     *
      * @return string|null
      */
-    public function createCard($addressBookId, $cardUri, $cardData) {
-
-        $stmt = $this->pdo->prepare('INSERT INTO ' . $this->cardsTableName . ' (carddata, uri, lastmodified, addressbookid, size, etag) VALUES (?, ?, ?, ?, ?, ?)');
+    public function createCard($addressBookId, $cardUri, $cardData)
+    {
+        $stmt = $this->pdo->prepare('INSERT INTO '.$this->cardsTableName.' (carddata, uri, lastmodified, addressbookid, size, etag) VALUES (?, ?, ?, ?, ?, ?)');
 
         $etag = md5($cardData);
 
-        $result = $stmt->execute([
+        $stmt->execute([
             $cardData,
             $cardUri,
             time(),
@@ -345,8 +331,7 @@ class PDO extends AbstractBackend implements SyncSupport {
 
         $this->addChange($addressBookId, $cardUri, 1);
 
-        return '"' . $etag . '"';
-
+        return '"'.$etag.'"';
     }
 
     /**
@@ -369,14 +354,15 @@ class PDO extends AbstractBackend implements SyncSupport {
      *
      * If you don't return an ETag, you can just return null.
      *
-     * @param mixed $addressBookId
+     * @param mixed  $addressBookId
      * @param string $cardUri
      * @param string $cardData
+     *
      * @return string|null
      */
-    public function updateCard($addressBookId, $cardUri, $cardData) {
-
-        $stmt = $this->pdo->prepare('UPDATE ' . $this->cardsTableName . ' SET carddata = ?, lastmodified = ?, size = ?, etag = ? WHERE uri = ? AND addressbookid =?');
+    public function updateCard($addressBookId, $cardUri, $cardData)
+    {
+        $stmt = $this->pdo->prepare('UPDATE '.$this->cardsTableName.' SET carddata = ?, lastmodified = ?, size = ?, etag = ? WHERE uri = ? AND addressbookid =?');
 
         $etag = md5($cardData);
         $stmt->execute([
@@ -385,31 +371,30 @@ class PDO extends AbstractBackend implements SyncSupport {
             strlen($cardData),
             $etag,
             $cardUri,
-            $addressBookId
+            $addressBookId,
         ]);
 
         $this->addChange($addressBookId, $cardUri, 2);
 
-        return '"' . $etag . '"';
-
+        return '"'.$etag.'"';
     }
 
     /**
-     * Deletes a card
+     * Deletes a card.
      *
-     * @param mixed $addressBookId
+     * @param mixed  $addressBookId
      * @param string $cardUri
+     *
      * @return bool
      */
-    public function deleteCard($addressBookId, $cardUri) {
-
-        $stmt = $this->pdo->prepare('DELETE FROM ' . $this->cardsTableName . ' WHERE addressbookid = ? AND uri = ?');
-        $stmt->execute(array($addressBookId, $cardUri));
+    public function deleteCard($addressBookId, $cardUri)
+    {
+        $stmt = $this->pdo->prepare('DELETE FROM '.$this->cardsTableName.' WHERE addressbookid = ? AND uri = ?');
+        $stmt->execute([$addressBookId, $cardUri]);
 
         $this->addChange($addressBookId, $cardUri, 3);
 
-        return $stmt->rowCount()===1;
-
+        return 1 === $stmt->rowCount();
     }
 
     /**
@@ -464,30 +449,34 @@ class PDO extends AbstractBackend implements SyncSupport {
      *
      * @param string $addressBookId
      * @param string $syncToken
-     * @param int $syncLevel
-     * @param int $limit
-     * @return array
+     * @param int    $syncLevel
+     * @param int    $limit
+     *
+     * @return array|null
      */
-    public function getChangesForAddressBook($addressBookId, $syncToken, $syncLevel, $limit = null) {
-
+    public function getChangesForAddressBook($addressBookId, $syncToken, $syncLevel, $limit = null)
+    {
         // Current synctoken
-        $stmt = $this->pdo->prepare('SELECT synctoken FROM ' . $this->addressBooksTableName . ' WHERE id = ?');
-        $stmt->execute([ $addressBookId ]);
+        $stmt = $this->pdo->prepare('SELECT synctoken FROM '.$this->addressBooksTableName.' WHERE id = ?');
+        $stmt->execute([$addressBookId]);
         $currentToken = $stmt->fetchColumn(0);
 
-        if (is_null($currentToken)) return null;
+        if (is_null($currentToken)) {
+            return null;
+        }
 
         $result = [
             'syncToken' => $currentToken,
-            'added'     => [],
-            'modified'  => [],
-            'deleted'   => [],
+            'added' => [],
+            'modified' => [],
+            'deleted' => [],
         ];
 
         if ($syncToken) {
-
-            $query = "SELECT uri, operation FROM " . $this->addressBookChangesTableName . " WHERE synctoken >= ? AND synctoken < ? AND addressbookid = ? ORDER BY synctoken";
-            if ($limit>0) $query.= " LIMIT " . (int)$limit;
+            $query = 'SELECT uri, operation FROM '.$this->addressBookChangesTableName.' WHERE synctoken >= ? AND synctoken < ? AND addressbookid = ? ORDER BY synctoken';
+            if ($limit > 0) {
+                $query .= ' LIMIT '.(int) $limit;
+            }
 
             // Fetching all changes
             $stmt = $this->pdo->prepare($query);
@@ -497,15 +486,12 @@ class PDO extends AbstractBackend implements SyncSupport {
 
             // This loop ensures that any duplicates are overwritten, only the
             // last change on a node is relevant.
-            while($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-
+            while ($row = $stmt->fetch(\PDO::FETCH_ASSOC)) {
                 $changes[$row['uri']] = $row['operation'];
-
             }
 
-            foreach($changes as $uri => $operation) {
-
-                switch($operation) {
+            foreach ($changes as $uri => $operation) {
+                switch ($operation) {
                     case 1:
                         $result['added'][] = $uri;
                         break;
@@ -516,41 +502,38 @@ class PDO extends AbstractBackend implements SyncSupport {
                         $result['deleted'][] = $uri;
                         break;
                 }
-
             }
         } else {
             // No synctoken supplied, this is the initial sync.
-            $query = "SELECT uri FROM " . $this->cardsTableName . " WHERE addressbookid = ?";
+            $query = 'SELECT uri FROM '.$this->cardsTableName.' WHERE addressbookid = ?';
             $stmt = $this->pdo->prepare($query);
             $stmt->execute([$addressBookId]);
 
             $result['added'] = $stmt->fetchAll(\PDO::FETCH_COLUMN);
         }
-        return $result;
 
+        return $result;
     }
 
     /**
      * Adds a change record to the addressbookchanges table.
      *
-     * @param mixed $addressBookId
+     * @param mixed  $addressBookId
      * @param string $objectUri
-     * @param int $operation 1 = add, 2 = modify, 3 = delete
-     * @return void
+     * @param int    $operation     1 = add, 2 = modify, 3 = delete
      */
-    protected function addChange($addressBookId, $objectUri, $operation) {
-
-        $stmt = $this->pdo->prepare('INSERT INTO ' . $this->addressBookChangesTableName .' (uri, synctoken, addressbookid, operation) SELECT ?, synctoken, ?, ? FROM ' . $this->addressBooksTableName . ' WHERE id = ?');
+    protected function addChange($addressBookId, $objectUri, $operation)
+    {
+        $stmt = $this->pdo->prepare('INSERT INTO '.$this->addressBookChangesTableName.' (uri, synctoken, addressbookid, operation) SELECT ?, synctoken, ?, ? FROM '.$this->addressBooksTableName.' WHERE id = ?');
         $stmt->execute([
             $objectUri,
             $addressBookId,
             $operation,
-            $addressBookId
+            $addressBookId,
         ]);
-        $stmt = $this->pdo->prepare('UPDATE ' . $this->addressBooksTableName . ' SET synctoken = synctoken + 1 WHERE id = ?');
+        $stmt = $this->pdo->prepare('UPDATE '.$this->addressBooksTableName.' SET synctoken = synctoken + 1 WHERE id = ?');
         $stmt->execute([
-            $addressBookId
+            $addressBookId,
         ]);
-
     }
 }

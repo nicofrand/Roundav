@@ -1,57 +1,58 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\DAV;
 
 /**
- * SimpleFile
+ * SimpleFile.
  *
  * The 'SimpleFile' class is used to easily add read-only immutable files to
  * the directory structure. One usecase would be to add a 'readme.txt' to a
  * root of a webserver with some standard content.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-class SimpleFile extends File {
-
+class SimpleFile extends File
+{
     /**
-     * File contents
+     * File contents.
      *
      * @var string
      */
-    protected $contents = array();
+    protected $contents = [];
 
     /**
-     * Name of this resource
+     * Name of this resource.
      *
      * @var string
      */
     protected $name;
 
     /**
-     * A mimetype, such as 'text/plain' or 'text/html'
+     * A mimetype, such as 'text/plain' or 'text/html'.
      *
      * @var string
      */
     protected $mimeType;
 
     /**
-     * Creates this node
+     * Creates this node.
      *
      * The name of the node must be passed, as well as the contents of the
      * file.
      *
-     * @param string $name
-     * @param string $contents
+     * @param string      $name
+     * @param string      $contents
      * @param string|null $mimeType
      */
-    public function __construct($name, $contents, $mimeType = null) {
-
+    public function __construct($name, $contents, $mimeType = null)
+    {
         $this->name = $name;
         $this->contents = $contents;
         $this->mimeType = $mimeType;
-
     }
 
     /**
@@ -61,23 +62,21 @@ class SimpleFile extends File {
      *
      * @return string
      */
-    public function getName() {
-
+    public function getName()
+    {
         return $this->name;
-
     }
 
     /**
-     * Returns the data
+     * Returns the data.
      *
      * This method may either return a string or a readable stream resource
      *
      * @return mixed
      */
-    public function get() {
-
+    public function get()
+    {
         return $this->contents;
-
     }
 
     /**
@@ -85,37 +84,35 @@ class SimpleFile extends File {
      *
      * @return int
      */
-    public function getSize() {
-
+    public function getSize()
+    {
         return strlen($this->contents);
-
     }
 
     /**
-     * Returns the ETag for a file
+     * Returns the ETag for a file.
      *
      * An ETag is a unique identifier representing the current version of the file. If the file changes, the ETag MUST change.
      * The ETag is an arbitrary string, but MUST be surrounded by double-quotes.
      *
      * Return null if the ETag can not effectively be determined
+     *
      * @return string
      */
-    public function getETag() {
-
-        return '"' . md5($this->contents) . '"';
-
+    public function getETag()
+    {
+        return '"'.sha1($this->contents).'"';
     }
 
     /**
-     * Returns the mime-type for a file
+     * Returns the mime-type for a file.
      *
      * If null is returned, we'll assume application/octet-stream
+     *
      * @return string
      */
-    public function getContentType() {
-
+    public function getContentType()
+    {
         return $this->mimeType;
-
     }
-
 }

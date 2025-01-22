@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Sabre\DAV\Sync;
 
 use Sabre\DAV;
@@ -11,12 +13,12 @@ use Sabre\DAV;
  * means that if any child nodes in this collection was created, modified or
  * deleted in any way, you should maintain an updated changelist.
  *
- * @copyright Copyright (C) 2007-2015 fruux GmbH (https://fruux.com/).
+ * @copyright Copyright (C) fruux GmbH (https://fruux.com/)
  * @author Evert Pot (http://evertpot.com/)
  * @license http://sabre.io/license/ Modified BSD License
  */
-interface ISyncCollection extends DAV\ICollection {
-
+interface ISyncCollection extends DAV\ICollection
+{
     /**
      * This method returns the current sync-token for this collection.
      * This can be any string.
@@ -26,7 +28,7 @@ interface ISyncCollection extends DAV\ICollection {
      *
      * @return string|null
      */
-    function getSyncToken();
+    public function getSyncToken();
 
     /**
      * The getChanges method returns all the changes that have happened, since
@@ -34,7 +36,7 @@ interface ISyncCollection extends DAV\ICollection {
      *
      * This function should return an array, such as the following:
      *
-     * array(
+     * [
      *   'syncToken' => 'The current synctoken',
      *   'added'   => [
      *      'new.txt',
@@ -46,7 +48,7 @@ interface ISyncCollection extends DAV\ICollection {
      *      'foo.php.bak',
      *      'old.txt'
      *   )
-     * );
+     * ];
      *
      * The syncToken property should reflect the *current* syncToken of the
      * collection, as reported getSyncToken(). This is needed here too, to
@@ -79,11 +81,10 @@ interface ISyncCollection extends DAV\ICollection {
      * The limit is 'suggestive'. You are free to ignore it.
      *
      * @param string $syncToken
-     * @param int $syncLevel
-     * @param int $limit
-     * @return array
+     * @param int    $syncLevel
+     * @param int    $limit
+     *
+     * @return array|null
      */
-    function getChanges($syncToken, $syncLevel, $limit = null);
-
+    public function getChanges($syncToken, $syncLevel, $limit = null);
 }
-
