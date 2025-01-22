@@ -42,7 +42,7 @@ class roundrive_files_engine
      * @var rcmail
      */
     private $rc;
-    private $timeout = 600;
+
     private $sort_cols = array('name', 'mtime', 'size');
 
     private $file_data = [];
@@ -63,7 +63,6 @@ class roundrive_files_engine
     {
         $this->plugin  = $plugin;
         $this->rc      = $plugin->rc;
-        $this->timeout = $this->rc->config->get('session_lifetime') * 60;
 
         $settings = array(
                 'baseUri' => $this->rc->config->get('driver_webdav_url'),
@@ -471,7 +470,6 @@ class roundrive_files_engine
     protected function file_list_head($attrib, $a_show_cols)
     {
         $skin_path = $_SESSION['skin_path'];
-//        $image_tag = html::img(array('src' => "%s%s", 'alt' => "%s"));
 
         // check to see if we have some settings for sorting
         $sort_col   = $_SESSION['roundrive_sort_col'];
@@ -516,16 +514,11 @@ class roundrive_files_engine
         foreach ($a_show_cols as $col) {
             // get column name
             switch ($col) {
-/*
-            case 'status':
-                $col_name = '<span class="' . $col .'">&nbsp;</span>';
-                break;
-*/
-            case 'options':
-                $col_name = $list_menu;
-                break;
-            default:
-                $col_name = rcube::Q($this->plugin->gettext($col));
+                case 'options':
+                    $col_name = $list_menu;
+                    break;
+                default:
+                    $col_name = rcube::Q($this->plugin->gettext($col));
             }
 
             // make sort links
@@ -579,7 +572,6 @@ class roundrive_files_engine
      */
     public function file_info_box($attrib)
     {
-        // print_r($this->file_data, true);
         $table = new html_table(array('cols' => 2, 'class' => $attrib['class']));
 
         // file name
@@ -1101,7 +1093,6 @@ class roundrive_files_engine
     }
 
     /**
-     * Encode un chemin en raw
      * @param string $path
      * @return string
      */
@@ -1114,8 +1105,6 @@ class roundrive_files_engine
             continue;
           }
           $encodedpath .= '/'.rawurlencode($t);
-          //$encodedpath .= '/'.urlencode($t);
-          //$encodedpath .= '/'.str_replace(' ', '%20', $t);
         }
       }
       return $encodedpath;
