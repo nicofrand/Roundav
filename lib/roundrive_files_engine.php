@@ -980,7 +980,7 @@ class roundrive_files_engine
       }
       catch (Exception $e) {
         $result['status'] = 'NOK';
-        $result['reason'] = "Can't liste folders";
+        $result['reason'] = "Can't list folders";
       }
       echo json_encode($result);
       exit;
@@ -1024,7 +1024,7 @@ class roundrive_files_engine
       }
       catch (Exception $e) {
         $result['status'] = 'NOK';
-        $result['reason'] = "Can't liste files";
+        $result['reason'] = "Can't list files";
       }
       echo json_encode($result);
       exit;
