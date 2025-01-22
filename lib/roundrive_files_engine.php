@@ -325,14 +325,15 @@ class roundrive_files_engine
      */
     public function folder_auth_options($attrib)
     {
+        $suffix = $attrib['suffix'] ?? '';
         $checkbox = new html_checkbox(array(
             'name'  => 'store_passwords',
             'value' => '1',
-            'id'    => 'auth-pass-checkbox' . $attrib['suffix'],
+            'id'    => 'auth-pass-checkbox' . $suffix,
         ));
 
         return html::div('auth-options', $checkbox->show(). '&nbsp;'
-            . html::label('auth-pass-checkbox' . $attrib['suffix'], $this->plugin->gettext('storepasswords'))
+            . html::label('auth-pass-checkbox' . $suffix, $this->plugin->gettext('storepasswords'))
             . html::span('description', $this->plugin->gettext('storepasswordsdesc'))
         );
     }
