@@ -7,3 +7,9 @@ $rcmail_config['driver_webdav_url'] = 'http://url_to_your_webdav/prefix/file.php
 
 // Prefix ex for owncloud : /remote.php/webdav/
 $rcmail_config['driver_webdav_prefix'] = '/prefix/file.php/webdav/';
+
+// Override the username provided by Rounducbe
+$rcmail_config['driver_webdav_username'] = null;
+
+// Override the provided by Rounducbe
+$rcmail_config['driver_webdav_password'] = null;

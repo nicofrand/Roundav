@@ -64,8 +64,8 @@ class roundrive_files_engine
 
         $settings = array(
                 'baseUri' => $this->rc->config->get('driver_webdav_url'),
-                'userName' => $this->rc->user->get_username(),
-                'password' => $this->rc->get_user_password(),
+                'userName' => $this->rc->config->get('driver_webdav_username') ?? $this->rc->user->get_username(),
+                'password' => $this->rc->config->get('driver_webdav_password') ?? $this->rc->get_user_password(),
         );
 
         $client = new Client($settings);
