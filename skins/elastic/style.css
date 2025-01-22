@@ -41,7 +41,7 @@
 }
 
 #filestoolbar a.button.delete {
-  background-image: url(../../../../skins/larry/images/buttons.png);
+  background-image: url(../../../../skins/default/images/buttons.png);
 }
 
 #filestoolbar a.button.edit {
@@ -53,7 +53,7 @@
 }
 
 #filestoolbar a.button.print {
-  background-image: url(../../../../skins/larry/images/buttons.png);
+  background-image: url(../../../../skins/default/images/buttons.png);
   background-position: center -810px;
   background-repeat: no-repeat;
 }
@@ -107,7 +107,7 @@
 }
 
 #files-folder-list ul li span.name {
-  background: url(../../../../skins/larry/images/listicons.png) 6px 3px no-repeat;
+  background: url(../../../../skins/default/images/listicons.png) 6px 3px no-repeat;
   padding: 6px 8px 6px 32px;
   line-height: 25px;
   color: #376572;
@@ -192,7 +192,7 @@
 .filelist thead tr th.sortedDESC a {
   color: #004458;
   text-decoration: underline;
-  background-image: url(../../../../skins/larry/images/listicons.png);
+  background-image: url(../../../../skins/default/images/listicons.png);
   background-position: right -912px;
   background-repeat: no-repeat;
 }
@@ -215,7 +215,7 @@
   height: 18px;
   width: 20px;
   padding: 0;
-  background: url(../../../../skins/larry/images/listicons.png) -100px 0 no-repeat;
+  background: url(../../../../skins/default/images/listicons.png) -100px 0 no-repeat;
 }
 
 .filelist thead tr th.options {
@@ -244,7 +244,7 @@
 .filelist tbody tr td.options:hover span {
   width: 26px;
   height: 18px;
-  background: url(../../../../skins/larry/images/buttons.png) -5px -417px no-repeat;
+  background: url(../../../../skins/default/images/buttons.png) -5px -417px no-repeat;
   display: block;
 }
 
