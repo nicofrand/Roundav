@@ -799,7 +799,9 @@ class roundrive_files_engine
 
             // send request to the API
             try {
-              $dest = str_replace($this->plugin->gettext('files'), '/', $dest);
+              if (!is_null($dest)) {
+                $dest = str_replace($this->plugin->gettext('files'), '/', $dest);
+              }
               $file = $this->encoderawpath($dest .  '/' . $attach_name);
               $this->filesystem->put($file, file_get_contents($path));
               $files[] = $attach_name;
