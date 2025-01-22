@@ -982,7 +982,7 @@ class roundrive_files_engine
       }
       catch (Exception $e) {
         $result['status'] = 'NOK';
-        $result['reason'] = "Can't list folders";
+        $result['reason'] = "Can't list folders: “" . $e->getMessage() . "”";
       }
       echo json_encode($result);
       exit;
@@ -1026,7 +1026,7 @@ class roundrive_files_engine
       }
       catch (Exception $e) {
         $result['status'] = 'NOK';
-        $result['reason'] = "Can't list files";
+        $result['reason'] = "Can't list files: “" . $e->getMessage() . "”";
       }
       echo json_encode($result);
       exit;
@@ -1047,7 +1047,7 @@ class roundrive_files_engine
       }
       catch (Exception $e) {
         $result['status'] = 'NOK';
-        $result['reason'] = "Can't create folder";
+        $result['reason'] = "Can't create folder: “" . $e->getMessage() . "”";
       }
       echo json_encode($result);
       exit;
