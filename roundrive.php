@@ -121,4 +121,17 @@ class roundrive extends rcube_plugin
             $engine->actions();
         }
     }
+
+    /**
+     * Return attachment filename, handle empty filename case
+     *
+     * @param rcube_message_part $attachment Message part
+     * @param bool               $display    Convert to a description text for "special" types
+     *
+     * @return string Filename
+     */
+    public function get_attachment_name($attachment, $display)
+    {
+        return rcmail_action_mail_index::attachment_name($attachment, $display);
+    }
 }
