@@ -62,12 +62,6 @@
   display: inline;
 }
 
-#quicksearchbar #filesearchmenulink {
-  position: absolute;
-  top: 5px;
-  left: 6px;
-}
-
 #folderlistbox,
 #fileinfobox {
   position: absolute;
@@ -328,11 +322,41 @@
   display: none;
 }
 
+#files-compose-dialog #quicksearchbar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 1ex;
+  align-items: stretch;
+  margin-bottom: 1em;
+}
+
+#files-compose-dialog #searchmenulink {
+  width: 15px;
+}
+
+#files-compose-dialog .searchbox input {
+  width: 100%;
+  height: 100%;
+  background-color: white;
+}
+
+#files-compose-dialog #searchreset {
+  cursor: pointer;
+}
+
+#files-compose-dialog .two-panes {
+  display: grid;
+  grid-template-columns: 35% 1fr;
+  gap: 1em;
+}
+
 #files-compose-dialog #folderlistbox {
-  right: auto;
-  width: 190px;
-  top: 45px;
-  bottom: 5px;
+  position: static;
+  box-shadow: none;
+}
+
+#files-compose-dialog #filelistcontainer {
+  position: static;
   box-shadow: none;
 }
 
@@ -347,32 +371,6 @@
 
 #files-dialog.saveas #folderlistbox {
   top: 50px;
-}
-
-#files-compose-dialog #filelistcontainer {
-  position: absolute;
-  top: 45px;
-  bottom: 5px;
-  left: 200px;
-  right: 0;
-  box-shadow: none;
-}
-
-#files-compose-dialog #searchmenulink {
-  width: 15px;
-}
-
-#files-compose-dialog .searchbox input {
-  background-color: white;
-}
-
-#files-compose-dialog #quicksearchbar {
-  top: 10px;
-  right: 5px;
-}
-
-#files-compose-dialog #searchreset {
-  cursor: pointer;
 }
 
 a.filesaveall {

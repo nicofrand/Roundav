@@ -8,16 +8,18 @@
         <roundcube:button command="files-search-reset" id="searchreset" class="iconbutton reset" title="resetsearch" label="resetsearch" />
     </div>
 
-    <div id="folderlistbox" class="uibox listbox" role="navigation" aria-labelledby="aria-label-folderlist">
-        <h3 id="aria-label-folderlist" class="voice"><roundcube:label name="roundrive.arialabelfolderlist" /></h3>
-        <div id="files-folder-list" class="scroller">
-            <p class="loading"><span>Loading folders…</span></p>
+    <div class="two-panes">
+        <div id="folderlistbox" class="uibox listbox" role="navigation" aria-labelledby="aria-label-folderlist">
+            <h3 id="aria-label-folderlist" class="voice"><roundcube:label name="roundrive.arialabelfolderlist" /></h3>
+            <div id="files-folder-list" class="scroller">
+                <p class="loading"><span>Loading folders…</span></p>
+            </div>
         </div>
-    </div>
 
-    <div id="filelistcontainer" class="boxlistcontent uibox">
-        <h3 id="aria-label-filelist" class="voice"><roundcube:label name="arialabelfilelist" /></h3>
-        <roundcube:object name="filelist" id="filelist" class="records-table filelist sortheader fixedheader" aria-labelledby="aria-label-filelist" />
+        <div id="filelistcontainer" class="boxlistcontent uibox">
+            <h3 id="aria-label-filelist" class="voice"><roundcube:label name="arialabelfilelist" /></h3>
+            <roundcube:object name="filelist" id="filelist" class="records-table filelist sortheader fixedheader" aria-labelledby="aria-label-filelist" />
+        </div>
     </div>
 </div>
 
