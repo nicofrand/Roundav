@@ -325,7 +325,7 @@
 
 #files-compose-dialog #quicksearchbar {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   gap: 1ex;
   align-items: stretch;
   margin-bottom: 1em;
