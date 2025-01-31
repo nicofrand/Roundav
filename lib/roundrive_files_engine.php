@@ -992,7 +992,7 @@ class roundrive_files_engine
       );
       $search = rcube_utils::get_input_value('search', rcube_utils::INPUT_GET);
       if (!empty($search)) {
-        $search = is_array($search) && isset($search['name']) ? strtolower($search['name']) : strtolower($search);
+        $search = is_array($search) ? strtolower($search['name'] ?? '') : strtolower($search);
       }
 
       try {
