@@ -1089,10 +1089,27 @@ function roundrive_ui()
         rcmail.http_error(request, status, err);
     };
 
+    this._get_folder_list_element = function ()
+    {
+        var elem = $('#files-folder-list');
+        // try parent window if the list element does not exist
+        // i.e. called from dialog in parent window
+        if (!elem.length && window.parent && parent.rcmail) {
+            elem = $('#files-folder-list', window.parent.document.body);
+        }
+
+        return elem;
+    };
+
     // folders list request
     this.folder_list = function ()
     {
-        this.req = this.set_busy(true, 'loading');
+        // Do not use rcmail.set_busy to display the loading message.
+        this.req = rcmail.set_busy(true);
+
+        // Prefer displaying it in the modal directly.
+        var elem = this._get_folder_list_element();
+        elem.html('<p class="loading"><span>Loading folders…</span></p>');
         this.request('folder_list', {}, 'folder_list_response');
     };
 
@@ -1101,17 +1118,9 @@ function roundrive_ui()
     {
         if (!this.response(response)) { return; }
 
-        var first, elem = $('#files-folder-list'),
-            list = $('<ul class="listing"></ul>'),
-            collections = !rcmail.env.action.match(/^(preview|show)$/) ? ['audio', 'video', 'image', 'document'] : [];
-
-        // try parent window if the list element does not exist
-        // i.e. called from dialog in parent window
-        if (!elem.length && window.parent && parent.rcmail) {
-            elem = $('#files-folder-list', window.parent.document.body);
-        }
-
-        elem.html('').append(list);
+        var first;
+        var list = $('<ul class="listing"></ul>');
+        var collections = !rcmail.env.action.match(/^(preview|show)$/) ? ['audio', 'video', 'image', 'document'] : [];
 
         this.env.folders = this.folder_list_parse(response.result && response.result.list ? response.result.list : response.result);
 
@@ -1126,10 +1135,13 @@ function roundrive_ui()
 
             row.attr({ id: 'folder-collection-' + n, tabindex: 0 })
                 .append($('<span class="name"></span>').text(rcmail.gettext('roundrive.collection_' + n)))
-                .click(function () { file_api.folder_select(n, true); });
+                .on('click', function () { file_api.folder_select(n, true); });
 
             list.append(row);
         });
+
+        var elem = this._get_folder_list_element();
+        elem.html(list);
 
         // select first folder?
         if (this.env.folder) { this.folder_select(this.env.folder); }
@@ -1147,13 +1159,7 @@ function roundrive_ui()
     {
         if (rcmail.busy) { return; }
 
-        var list = $('#files-folder-list > ul');
-
-        // try parent window if the list element does not exist
-        // i.e. called from dialog in parent window
-        if (!list.length && window.parent && parent.rcmail) {
-            list = $('#files-folder-list > ul', window.parent.document.body);
-        }
+        var list = this._get_folder_list_element().children('ul');
 
         $('li.selected', list).removeClass('selected');
 
@@ -1180,7 +1186,7 @@ function roundrive_ui()
 
     this.folder_unselect = function ()
     {
-        var list = $('#files-folder-list > ul');
+        var list = this._get_folder_list_element().children('ul');
         $('li.selected', list).removeClass('selected');
         rcmail.enable_command('files-folder-delete', 'files-upload', false);
         this.env.folder = null;

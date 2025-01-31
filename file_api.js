@@ -425,7 +425,7 @@ function files_api()
     // converts number of seconds into HH:MM:SS format
     this.time_format = function (s)
     {
-        s = parseInt(s);
+        s = parseInt(s, 10);
 
         if (s >= 60 * 60 * 24) { return '-'; }
 
@@ -435,10 +435,13 @@ function files_api()
 
 // Add escape() method to RegExp object
 // http://dev.rubyonrails.org/changeset/7271
-RegExp.escape = function (str)
-{
-    return String(str).replace(/([.*+?^=!:${}()|[\]\/\\])/g, '\\$1');
-};
+if (!(RegExp.escape instanceof Function)) {
+    RegExp.escape = function (str)
+    {
+        return String(str).replace(/([.*+?^=!:${}()|[\]\/\\])/g, '\\$1');
+    };
+}
+
 
 // define String's startsWith() method for old browsers
 if (!String.prototype.startsWith) {

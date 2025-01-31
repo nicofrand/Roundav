@@ -6,7 +6,9 @@
     </div>
     <div id="folderlistbox" class="uibox listbox" role="navigation" aria-labelledby="aria-label-folderlist">
         <h3 id="aria-label-folderlist" class="voice"><roundcube:label name="roundrive.arialabelfolderlist" /></h3>
-        <div id="files-folder-list" class="scroller withfooter"></div>
+        <div id="files-folder-list" class="scroller withfooter">
+            <p class="loading"><span>Loading folders…</span></p>
+        </div>
         <div id="folderlist-footer" class="boxfooter">
             <roundcube:button
                 command="folder-create" name="foldercreatelink" id="foldercreatelink" type="link"

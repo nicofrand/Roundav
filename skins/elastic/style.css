@@ -106,6 +106,16 @@
   border: 0;
 }
 
+#files-folder-list .loading {
+  padding: 1em;
+  padding-bottom: 2em;
+  text-align: center;
+
+  background-image: url("./images/loading.gif");
+  background-repeat: no-repeat;
+  background-position: bottom;
+}
+
 #files-folder-list ul li span.name {
   background: url(../../../../skins/default/images/listicons.png) 6px 3px no-repeat;
   padding: 6px 8px 6px 32px;
