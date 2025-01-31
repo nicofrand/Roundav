@@ -27,7 +27,7 @@
 
 $labels['files'] = 'Arquivos';
 $labels['filepreview'] = 'Pré-visualização de arquivo';
-$labels['saveall'] = 'Salvar todos na nuvem...';
+$labels['saveall'] = 'Salvar todos na nuvem';
 $labels['saveto'] = 'Salvar na nuvem...';
 $labels['saveas'] = 'Salvar como:';
 $labels['create'] = 'Criar';

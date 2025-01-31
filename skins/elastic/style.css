@@ -448,6 +448,7 @@ table.propform td.source table.propform td {
 .menu a.saveas.eml:before,
 .menu a.saveas.maildir:before,
 .menu a.saveas.mbox:before,
-.menu a.saveas:before {
+.menu a.saveas:before,
+#message-header .header-links a.filesaveall::before {
   content: "\f0c2"
 }

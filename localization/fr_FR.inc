@@ -26,7 +26,7 @@
  */
 $labels['files'] = 'Fichiers';
 $labels['filepreview'] = 'Fichier d\'aperçu';
-$labels['saveall'] = 'Enregistrer tout dans le drive...';
+$labels['saveall'] = 'Enregistrer tout dans le drive';
 $labels['saveto'] = 'Enregistrer dans le drive...';
 $labels['saveas'] = 'Enregistrer sous:';
 $labels['create'] = 'Créer';

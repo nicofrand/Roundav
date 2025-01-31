@@ -57,13 +57,12 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
         }
         // mail preview
         else if (rcmail.env.action == 'show' || rcmail.env.action == 'preview') {
-            var attachment_list = $('#attachment-list');
-
-            if ($('li', attachment_list).length) {
-                var link = $('<a href="#" class="button filesaveall">')
-                    .text(rcmail.gettext('roundrive.saveall'))
-                    .click(function () { roundrive_directory_selector_dialog(); })
-                    .insertAfter(attachment_list);
+            var header_links = $('#message-header .header-links');
+            if (header_links.length) {
+                header_links.append(
+                    $('<a href="#" class="button filesaveall">' + rcmail.gettext('roundrive.saveall') + '</a>')
+                        .on('click', function () { roundrive_directory_selector_dialog(); })
+                );
             }
 
             rcmail.addEventListener('menu-open', roundrive_attach_menu_open);
