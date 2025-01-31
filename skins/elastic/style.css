@@ -443,3 +443,11 @@ table.propform td.source table.propform td {
 .auth-options label {
   vertical-align: middle;
 }
+
+/* Add icon */
+.menu a.saveas.eml:before,
+.menu a.saveas.maildir:before,
+.menu a.saveas.mbox:before,
+.menu a.saveas:before {
+  content: "\f0c2"
+}
