@@ -375,6 +375,7 @@ class roundrive_files_engine
     public function file_search_form($attrib)
     {
         $attrib['name'] = '_q';
+        $attrib['placeholder'] = 'Search';
 
         if (empty($attrib['id'])) {
             $attrib['id'] = 'filesearchbox';
