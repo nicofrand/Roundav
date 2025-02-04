@@ -233,17 +233,17 @@ function files_api()
             if (tree = folders[i].tree) {
                 var html = '', divs = [];
                 for (n = 0; n < folders[i].depth; n++) {
-                    if (tree[n] > 2) { divs.push({ class: 'l3', width: 15 }); }
-                    else if (tree[n] > 1) { divs.push({ class: 'l2', width: 15 }); }
-                    else if (tree[n] > 0) { divs.push({ class: 'l1', width: 15 }); }
+                    if (tree[n] > 2) { divs.push({ class: 'l3', width: 1 }); }
+                    else if (tree[n] > 1) { divs.push({ class: 'l2', width: 1 }); }
+                    else if (tree[n] > 0) { divs.push({ class: 'l1', width: 1 }); }
                     // separator
-                    else if (divs.length && !divs[divs.length - 1].class) { divs[divs.length - 1].width += 15; }
+                    else if (divs.length && !divs[divs.length - 1].class) { divs[divs.length - 1].width++; }
                     else { divs.push({ class: null, width: 15 }); }
                 }
 
                 for (n = divs.length - 1; n >= 0; n--) {
                     if (divs[n].class) { html += '<span class="tree ' + divs[n].class + '" />'; }
-                    else { html += '<span style="width:' + divs[n].width + 'px" />'; }
+                    else { html += '<span style="width:' + divs[n].width + 'em" />'; }
                 }
 
                 if (html) { $('#' + folders[i].id + ' span.branch').html(html); }

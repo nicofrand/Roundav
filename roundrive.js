@@ -31,12 +31,14 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
     if (rcmail.task == 'mail') {
     // mail compose
         if (rcmail.env.action == 'compose') {
-            var elem = $('#compose-attachments > div'),
-                input = $('<input class="button" type="button">')
-                    .attr('tabindex', $('input', elem).attr('tabindex') || 0)
-                    .val(rcmail.gettext('roundrive.fromcloud'))
-                    .click(function () { roundrive_selector_dialog(); })
-                    .appendTo(elem);
+            var elem = $('#compose-attachments > div');
+            var input = $(`<button class="btn btn-secondary attach cloud" type="button">
+                <span class="cloud-icon"></span>
+                <span>${rcmail.gettext('roundrive.fromcloud')}</span>
+            </button>`)
+                    .attr('tabindex', $('button', elem).attr('tabindex') || 0)
+                    .click(function () { roundrive_selector_dialog(); });
+            elem.append('<br />', input);
 
             if (rcmail.gui_objects.filelist) {
                 rcmail.file_list = new rcube_list_widget(rcmail.gui_objects.filelist, {
@@ -225,10 +227,10 @@ function roundrive_directory_selector_dialog(id)
         title: rcmail.gettext('roundrive.' + label),
         buttons: buttons,
         button_classes: ['mainaction'],
-        minWidth: 250,
+        minWidth: 300,
         minHeight: 300,
-        height: 350,
-        width: 300,
+        height: 400,
+        width: 500,
     }, fn);
 
     // "enable" folder creation when dialog is displayed in parent window
@@ -1173,14 +1175,14 @@ function roundrive_ui()
         rcmail.enable_command('files-list', true);
 
         if (is_collection) {
-            var found = $('#folder-collection-' + folder, list).addClass('selected');
+            $('#folder-collection-' + folder, list).addClass('selected');
 
             rcmail.enable_command('files-folder-delete', 'folder-rename', 'files-upload', false);
             this.env.folder = null;
             rcmail.command('files-list', { collection: folder });
         }
         else {
-            var found = $('#' + this.env.folders[folder].id, list).addClass('selected');
+            $('#' + this.env.folders[folder].id, list).addClass('selected');
 
             rcmail.enable_command('files-folder-delete', 'folder-rename', 'files-upload', true);
             this.env.folder = folder;
@@ -1202,26 +1204,34 @@ function roundrive_ui()
 
     this.folder_list_row = function (i, folder)
     {
-        var row = $('<li class="mailbox"><span class="branch"></span></li>');
-
-        row.attr('id', folder.id).data('folder', i)
-            .append($('<span class="name"></span>').text(folder.name));
-
+        var rowClasses = ["mailbox"];
         if (folder.depth) {
-            $('span.branch', row).width(15 * folder.depth);
-            row.addClass('child');
+            rowClasses.push("child");
         }
 
-        if (folder.virtual) { row.addClass('virtual'); }
-        else { row.attr('tabindex', 0)
-            .keypress(function (e) { if (e.which == 13 || e.which == 32) { file_api.folder_select(i); } })
-            .click(function () { file_api.folder_select(i); })
-            .mouseenter(function () {
-                if (rcmail.file_list && rcmail.file_list.drag_active && !$(this).hasClass('selected')) { $(this).addClass('droptarget'); }
-            })
-            .mouseleave(function () {
-                if (rcmail.file_list && rcmail.file_list.drag_active) { $(this).removeClass('droptarget'); }
-            }); }
+        if (folder.virtual) {
+            rowClasses.push("virtual");
+        }
+
+        var row = $(`<li id="${folder.id}" class="${rowClasses.join(" ")}">
+            <span class="branch" ${folder.depth ? `style="width: ${folder.depth}em"` : ""}></span>
+            <span class="name">${folder.name}</span>
+        </li>`);
+
+        row.data('folder', i);
+
+        if (!folder.virtual)
+        {
+            row.attr('tabindex', 0)
+                .keypress(function (e) { if (e.which == 13 || e.which == 32) { file_api.folder_select(i); } })
+                .click(function () { file_api.folder_select(i); })
+                .mouseenter(function () {
+                    if (rcmail.file_list && rcmail.file_list.drag_active && !$(this).hasClass('selected')) { $(this).addClass('droptarget'); }
+                })
+                .mouseleave(function () {
+                    if (rcmail.file_list && rcmail.file_list.drag_active) { $(this).removeClass('droptarget'); }
+                });
+        }
 
         return row;
     };

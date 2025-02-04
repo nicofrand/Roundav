@@ -110,8 +110,18 @@
   background-position: bottom;
 }
 
+#files-folder-list ul.listing {
+  padding-left: 1em;
+  padding-right: 1em;
+}
+
+#files-folder-list ul.listing li:hover,
+#files-folder-list ul.listing li:focus {
+  background-color: aliceblue;
+}
+
 #files-folder-list ul li span.name {
-  padding: 6px 8px 6px 32px;
+  padding: 6px 8px 6px 0;
   line-height: 25px;
   color: #376572;
 }
@@ -386,12 +396,16 @@ a.filesaveall {
 }
 
 #file-save-as {
+  display: grid;
+  gap: 1em;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
   height: 25px;
   white-space: nowrap;
 }
 
 #file-save-as input {
-  width: 200px;
+  min-width: 200px;
 }
 
 ul.toolbarmenu li span.saveas {
@@ -449,10 +463,11 @@ table.propform td.source table.propform td {
 }
 
 /* Add icon */
-.menu a.saveas.eml:before,
-.menu a.saveas.maildir:before,
-.menu a.saveas.mbox:before,
-.menu a.saveas:before,
-#message-header .header-links a.filesaveall::before {
+.menu a.saveas.eml::before,
+.menu a.saveas.maildir::before,
+.menu a.saveas.mbox::before,
+.menu a.saveas::before,
+#message-header .header-links a.filesaveall::before,
+button.attach.cloud::before {
   content: "\f0c2"
 }
