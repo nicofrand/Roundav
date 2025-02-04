@@ -751,7 +751,6 @@ class roundrive_files_engine
      */
     protected function action_save_file()
     {
-        $source = rcube_utils::get_input_value('source', rcube_utils::INPUT_POST);
         $uid    = rcube_utils::get_input_value('uid', rcube_utils::INPUT_POST);
         $dest   = rcube_utils::get_input_value('dest', rcube_utils::INPUT_POST);
         $id     = rcube_utils::get_input_value('id', rcube_utils::INPUT_POST);
@@ -796,8 +795,8 @@ class roundrive_files_engine
               if (!is_null($dest)) {
                 $dest = str_replace($this->plugin->gettext('files'), '/', $dest);
               }
-              $file = $this->encoderawpath($dest .  '/' . $attach_name);
-              $this->filesystem->write($file, file_get_contents($path));
+
+              $this->filesystem->write($dest .  '/' . $attach_name, file_get_contents($path));
               $files[] = $attach_name;
             }
             catch (Exception $e) {
@@ -867,8 +866,6 @@ class roundrive_files_engine
             $path = tempnam($temp_dir, 'rcmAttmnt');
 
             try {
-              $file = $this->encoderawpath($file);
-
               // save attachment to file
               if ($fp = fopen($path, 'w+')) {
                 fwrite($fp, $this->filesystem->read($file));
@@ -998,7 +995,6 @@ class roundrive_files_engine
       try {
         $filesPrefix = $this->plugin->gettext('files');
         $folder = str_replace($filesPrefix, '/', rcube_utils::get_input_value('folder', rcube_utils::INPUT_GET));
-        $folder = $this->encoderawpath($folder);
         $files = [];
 
         $fsFiles = $this->filesystem->listContents($folder, false)
@@ -1043,7 +1039,6 @@ class roundrive_files_engine
       );
       try {
         $folder = str_replace($this->plugin->gettext('files'), '/', urldecode(rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST)));
-        $folder = $this->encoderawpath($folder);
         $this->filesystem->createDirectory($folder);
       }
       catch (Exception $e) {
@@ -1091,23 +1086,5 @@ class roundrive_files_engine
         $filename = end($tmp);
       }
       return $filename;
-    }
-
-    /**
-     * @param string $path
-     * @return string
-     */
-    protected function encoderawpath($path) {
-      $tmp = explode('/', $path);
-      $encodedpath = "";
-      if (is_array($tmp) && count($tmp) > 0) {
-        foreach ($tmp as $t) {
-          if (empty($t)) {
-            continue;
-          }
-          $encodedpath .= '/'.rawurlencode($t);
-        }
-      }
-      return $encodedpath;
     }
 }
