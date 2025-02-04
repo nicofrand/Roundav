@@ -1014,9 +1014,9 @@ class roundrive_files_engine
             $key = urlencode($filesPrefix. '/'. urldecode($fsfile['path']));
             $files[$key] = array(
                 'name' => $basename,
-                'type' => $fsfile['mimetype'],
-                'size' => $fsfile['size'],
-                'mtime' => $fsfile['timestamp'],
+                'type' => $fsfile['mimeType'],
+                'size' => $fsfile['fileSize'],
+                'mtime' => $fsfile['lastModified'],
             );
         }
         $result['result'] = $files;
