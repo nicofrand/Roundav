@@ -1117,7 +1117,14 @@ function roundrive_ui()
     // folder list response handler
     this.folder_list_response = function (response)
     {
-        if (!this.response(response)) { return; }
+        var elem = this._get_folder_list_element();
+
+        if (!this.response(response))
+        {
+            var errorMessage = response && response.reason ? response.reason : "Unknown error";
+            elem.html(`<p>ERROR: ${errorMessage}</p>`)
+            return;
+        }
 
         var first;
         var list = $('<ul class="listing"></ul>');
@@ -1141,7 +1148,6 @@ function roundrive_ui()
             list.append(row);
         });
 
-        var elem = this._get_folder_list_element();
         elem.html(list);
 
         // select first folder?
