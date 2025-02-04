@@ -37,9 +37,9 @@ class roundav_files_engine
         $this->rc      = $plugin->rc;
 
         $settings = array(
-                'baseUri' => $this->rc->config->get('driver_webdav_url'),
-                'userName' => $this->rc->config->get('driver_webdav_username') ?? $this->rc->user->get_username(),
-                'password' => $this->rc->config->get('driver_webdav_password') ?? $this->rc->get_user_password(),
+            'baseUri' => $this->rc->config->get('driver_webdav_url'),
+            'userName' => $this->rc->config->get('driver_webdav_username') ?? $this->rc->user->get_username(),
+            'password' => $this->rc->config->get('driver_webdav_password') ?? $this->rc->get_user_password(),
         );
 
         $client = new Client($settings);
@@ -94,7 +94,8 @@ class roundav_files_engine
             $this->plugin->add_label('save', 'cancel', 'saveto',
                 'saveall', 'fromcloud', 'attachsel', 'selectfiles', 'attaching',
                 'collection_audio', 'collection_video', 'collection_image', 'collection_document',
-                'folderauthtitle', 'authenticating'
+                'folderauthtitle', 'authenticating',
+                'refreshfolderslist'
             );
         }
         else if ($this->rc->task == 'roundav' && $this->rc->config->get('show_drive_task', true)) {
@@ -360,7 +361,7 @@ class roundav_files_engine
         $out = $input_q->show();
 
         // add some labels to client
-        $this->rc->output->add_label('searching');
+        $this->plugin->add_label('searching');
         $this->rc->output->add_gui_object('filesearchbox', $attrib['id']);
 
         // add form tag around text field
@@ -629,10 +630,11 @@ class roundav_files_engine
             'filedeleting', 'filedeletenotice', 'filedeleteconfirm',
             'filemoving', 'filemovenotice', 'filemoveconfirm', 'filecopying', 'filecopynotice',
             'collection_audio', 'collection_video', 'collection_image', 'collection_document',
-            'fileskip', 'fileskipall', 'fileoverwrite', 'fileoverwriteall'
+            'fileskip', 'fileskipall', 'fileoverwrite', 'fileoverwriteall',
+            'refreshfolderslist'
         );
 
-        $this->rc->output->add_label('uploadprogress', 'GB', 'MB', 'KB', 'B');
+        $this->plugin->add_label('uploadprogress', 'GB', 'MB', 'KB', 'B');
         $this->rc->output->set_pagetitle($this->plugin->gettext('files'));
         $this->rc->output->set_env('file_mimetypes', $this->get_mimetypes());
         $this->rc->output->set_env('files_quota', $_SESSION['roundav_caps']['QUOTA']);
@@ -932,14 +934,29 @@ class roundav_files_engine
         'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
       );
 
-      try {
-        $filesPrefix = $this->plugin->gettext('files');
-        $folders = $this->filesystem->listContents('/', true)
-            ->filter(fn (StorageAttributes $attributes) => $attributes->isDir())
-            ->map(fn (StorageAttributes $attributes) => $filesPrefix .'/'.urldecode($attributes->path()))
-            ->toArray();
+      $folders = null;
+      $force_refresh = rcube_utils::get_input_value('force_refresh', rcube_utils::INPUT_GET) === "true";
 
-        array_unshift($folders, $filesPrefix);
+      if (isset($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID])) {
+        if ($force_refresh) {
+            unset($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID]);
+        } else {
+            $folders = $_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID];
+        }
+      }
+
+      try {
+        if (is_null($folders)) {
+            $filesPrefix = $this->plugin->gettext('files');
+            $folders = $this->filesystem->listContents('/', true)
+                ->filter(fn (StorageAttributes $attributes) => $attributes->isDir())
+                ->map(fn (StorageAttributes $attributes) => $filesPrefix .'/'.urldecode($attributes->path()))
+                ->toArray();
+
+            array_unshift($folders, $filesPrefix);
+
+            $_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID] = $folders;
+        }
 
         $result['result'] = $folders;
       }

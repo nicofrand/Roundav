@@ -31,11 +31,9 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
     if (rcmail.task == 'mail') {
         if (rcmail.env.action == 'compose') {
             var elem = $('#compose-attachments > div');
-            var input = $(`<button class="btn btn-secondary attach cloud" type="button">
+            var input = $(`<button class="btn btn-secondary attach cloud" type="button" tabindex="${$('button', elem).attr('tabindex') || 0}">
                 ${rcmail.gettext('roundav.fromcloud')}
-            </button>`)
-                    .attr('tabindex', $('button', elem).attr('tabindex') || 0)
-                    .click(function () { roundav_selector_dialog(); });
+            </button>`).click(function () { roundav_selector_dialog(); });
             elem.append('<br />', input);
 
             if (rcmail.gui_objects.filelist) {
@@ -69,10 +67,12 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
 
             rcmail.addEventListener('menu-open', roundav_attach_menu_open);
             rcmail.enable_command('folder-create', true);
+            rcmail.enable_command('folder-force-reload', true);
         }
         // attachment preview
         else if (rcmail.env.action == 'get') {
             rcmail.enable_command('folder-create', true);
+            rcmail.enable_command('folder-force-reload', true);
         }
 
         roundav_init();
@@ -87,13 +87,12 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
                 dblclick_time: rcmail.dblclick_time,
             });
             /*
-      rcmail.file_list.row_init = function(o){ roundav_init_file_row(o); };
-      rcmail.file_list.addEventListener('dblclick', function(o){ p.msglist_dbl_click(o); });
-      rcmail.file_list.addEventListener('click', function(o){ p.msglist_click(o); });
-      rcmail.file_list.addEventListener('keypress', function(o){ p.msglist_keypress(o); });
-      rcmail.file_list.addEventListener('dragstart', function(o){ p.drag_start(o); });
-      rcmail.file_list.addEventListener('dragmove', function(e){ p.drag_move(e); });
-*/
+            rcmail.file_list.row_init = function(o){ roundav_init_file_row(o); };
+            rcmail.file_list.addEventListener('click', function(o){ p.msglist_click(o); });
+            rcmail.file_list.addEventListener('keypress', function(o){ p.msglist_keypress(o); });
+            rcmail.file_list.addEventListener('dragstart', function(o){ p.drag_start(o); });
+            rcmail.file_list.addEventListener('dragmove', function(e){ p.drag_move(e); });
+            */
             rcmail.file_list.addEventListener('dblclick', function (o) { roundav_list_dblclick(o); })
                 .addEventListener('select', function (o) { roundav_list_select(o); })
                 .addEventListener('keypress', function (o) { roundav_list_keypress(o); })
@@ -101,7 +100,15 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
                 .addEventListener('column_replace', function (e) { roundav_set_coltypes(e); })
                 .addEventListener('listupdate', function (e) { rcmail.triggerEvent('listupdate', e); });
 
-            rcmail.enable_command('menu-open', 'menu-save', 'files-sort', 'files-search', 'files-search-reset', 'folder-create', true);
+            rcmail.enable_command(
+                'menu-open',
+                'menu-save',
+                'files-sort',
+                'files-search',
+                'files-search-reset',
+                'folder-create',
+                'folder-force-reload',
+            true);
 
             rcmail.file_list.init();
             roundav_list_coltypes();
@@ -232,11 +239,20 @@ function roundav_directory_selector_dialog(id)
     }, fn);
 
     // "enable" folder creation when dialog is displayed in parent window
-    if (rcmail.is_framed() && !parent.rcmail.folder_create) {
-        parent.rcmail.enable_command('folder-create', true);
-        parent.rcmail.folder_create = function () {
-            win.roundav_folder_create_dialog();
-        };
+    if (rcmail.is_framed()) {
+        if (!parent.rcmail.folder_create) {
+            parent.rcmail.enable_command('folder-create', true);
+            parent.rcmail.folder_create = function () {
+                win.roundav_folder_create_dialog();
+            };
+        }
+
+        if (!parent.rcmail.folder_force_reload) {
+            parent.rcmail.enable_command('folder-force-reload', true);
+            parent.rcmail.folder_force_reload = function () {
+                win.roundav_folder_force_reload();
+            };
+        }
     }
 }
 
@@ -553,6 +569,11 @@ function roundav_dialog_submit_handler()
 function roundav_dialog_close(dialog)
 {
     (rcmail.is_framed() ? window.parent : window).$(dialog).dialog('close');
+}
+
+function roundav_folder_force_reload()
+{
+    file_api.folder_list(true);
 }
 
 // smart upload button
@@ -1103,7 +1124,7 @@ function roundav_ui()
     };
 
     // folders list request
-    this.folder_list = function ()
+    this.folder_list = function (forceRefresh = false)
     {
         // Do not use rcmail.set_busy to display the loading message.
         this.req = rcmail.set_busy(true);
@@ -1111,7 +1132,9 @@ function roundav_ui()
         // Prefer displaying it in the modal directly.
         var elem = this._get_folder_list_element();
         elem.html('<p class="loading"><span>Loading folders…</span></p>');
-        this.request('folder_list', {}, 'folder_list_response');
+        this.request('folder_list', {
+            force_refresh: forceRefresh === true
+        }, 'folder_list_response');
     };
 
     // folder list response handler
@@ -1249,7 +1272,7 @@ function roundav_ui()
         this.display_message('roundav.foldercreatenotice', 'confirmation');
 
         // refresh folders list
-        this.folder_list();
+        this.folder_list(true);
     };
 
     // folder rename request
@@ -1271,7 +1294,7 @@ function roundav_ui()
 
         // refresh folders and files list
         this.env.folder = this.env.folder_rename;
-        this.folder_list();
+        this.folder_list(true);
     };
 
     // folder mount (external storage) request
@@ -1289,7 +1312,7 @@ function roundav_ui()
         this.display_message('roundav.foldermountnotice', 'confirmation');
 
         // refresh folders list
-        this.folder_list();
+        this.folder_list(true);
     };
 
     // folder delete request
@@ -1309,7 +1332,7 @@ function roundav_ui()
         this.display_message('roundav.folderdeletenotice', 'confirmation');
 
         // refresh folders list
-        this.folder_list();
+        this.folder_list(true);
         this.quota();
     };
 

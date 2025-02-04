@@ -5,14 +5,22 @@
         <input id="file-save-as-input" type="text" value="">
     </div>
     <div id="folderlistbox" class="uibox listbox" role="navigation" aria-labelledby="aria-label-folderlist">
-        <h3 id="aria-label-folderlist" class="voice"><roundcube:label name="roundav.arialabelfolderlist" /></h3>
+        <h3 id="aria-label-folderlist" class="voice">
+            <roundcube:label name="roundav.arialabelfolderlist" />
+        </h3>
         <div id="files-folder-list" class="scroller withfooter">
-            <p class="loading"><span>Loading folders…</span></p>
+            <p class="loading">
+                <span>Loading folders…</span>
+            </p>
         </div>
-        <div id="folderlist-footer" class="boxfooter">
+        <div class="files-folder-list-actions" class="boxfooter">
             <roundcube:button
                 command="folder-create" name="foldercreatelink" id="foldercreatelink" type="link"
-                label="createfolder" title="createfolder" class="listbutton add" classAct="listbutton add" innerClass="inner"
+                label="createfolder" title="createfolder" class="listbutton add" classAct="listbutton add"
+            />
+            <roundcube:button
+                command="folder-force-reload" name="refreshfolderslist" id="refreshfolderslist" type="link"
+                label="roundav.refreshfolderslist" title="roundav.refreshfolderslist" class="listbutton refresh" classAct="listbutton refresh"
             />
         </div>
     </div>

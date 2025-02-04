@@ -30,6 +30,8 @@ include_once(__DIR__.'/vendor/autoload.php');
 
 class roundav extends rcube_plugin
 {
+    public const SESSION_FOLDERS_LIST_ID = 'roundav_folders_list';
+
     // all task excluding 'login' and 'logout'
     public $task = '?(?!login|logout).*';
 
@@ -41,24 +43,19 @@ class roundav extends rcube_plugin
     {
         $this->rc = rcube::get_instance();
 
-        // Register hooks
         $this->add_hook('refresh', array($this, 'refresh'));
+        $this->add_hook('startup', array($this, 'startup'));
+        $this->add_hook('logout', array($this, 'onlogout'));
 
-        // Plugin actions for other tasks
-        $this->register_action('plugin.roundav', array($this, 'actions'));
-
-
-        // Register task
         $this->register_task('roundav');
 
-        // Register plugin task actions
+
         $this->register_action('index', array($this, 'actions'));
         $this->register_action('prefs', array($this, 'actions'));
         $this->register_action('open',  array($this, 'actions'));
         $this->register_action('file_api', array($this, 'actions'));
 
-        // Load UI from startup hook
-        $this->add_hook('startup', array($this, 'startup'));
+        $this->register_action('plugin.roundav', array($this, 'actions'));
     }
 
     /**
@@ -68,7 +65,6 @@ class roundav extends rcube_plugin
     {
         if ($this->engine === null) {
             $this->load_config();
-
 
             require_once $this->home . DIRECTORY_SEPARATOR . 'lib' . DIRECTORY_SEPARATOR . 'roundav_files_engine.php';
 
@@ -110,6 +106,16 @@ class roundav extends rcube_plugin
         // the session will be active
         if ($engine = $this->engine()) {
         }
+
+        return $args;
+    }
+
+    /**
+     * Logout hook handler
+     */
+    public function onlogout($args)
+    {
+        unset($_SESSION[self::SESSION_FOLDERS_LIST_ID]);
 
         return $args;
     }

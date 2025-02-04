@@ -35,7 +35,7 @@
     <div id="files-folder-list" class="scroller withfooter">
         <p class="loading"><span>Loading folders…</span></p>
     </div>
-    <div id="folderlist-footer" class="boxfooter">
+    <div id="files-folder-list-actions" class="boxfooter">
         <roundcube:button command="folder-create" type="link" title="roundav.foldercreate" class="listbutton add" classAct="listbutton add" innerClass="inner" content="+" /><roundcube:button name="folderoptions" id="folderoptionslink" type="link" title="moreactions" class="listbutton groupactions" onclick="return UI.toggle_popup('folderoptions', event)" innerClass="inner" content="&#9881;" aria-haspopup="true" aria-expanded="false" aria-owns="folderoptionsmenu" />
         <roundcube:if condition="env:files_quota" />
             <span class="voice"><roundcube:label name="quota"></span>

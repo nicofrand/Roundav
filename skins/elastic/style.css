@@ -71,6 +71,13 @@
   bottom: 0;
 }
 
+#folderlistbox .files-folder-list-actions {
+  padding: 0.5em 1em;
+  border-top: 1px solid #ddd;
+  display: flex;
+  justify-content: space-between;
+}
+
 #filelistcontainer,
 #filecontent {
   position: absolute;
@@ -382,11 +389,13 @@
   left: 0;
   right: 0;
   width: auto;
+  height: auto;
   box-shadow: none;
 }
 
 #files-dialog.saveas #folderlistbox {
   top: 50px;
+  height: auto;
 }
 
 a.filesaveall {
