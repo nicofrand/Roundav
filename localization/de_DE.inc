@@ -1,6 +1,6 @@
 <?php
 /**
- * Localizations for the Roundrive plugin
+ * Localizations for the Roundav plugin
  *
  * @version @package_version@
  * @author Klaus Rörig <kroerig@gmail.com>

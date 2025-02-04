@@ -28,7 +28,7 @@
 
 include_once(__DIR__.'/vendor/autoload.php');
 
-class roundrive extends rcube_plugin
+class roundav extends rcube_plugin
 {
     // all task excluding 'login' and 'logout'
     public $task = '?(?!login|logout).*';
@@ -45,11 +45,11 @@ class roundrive extends rcube_plugin
         $this->add_hook('refresh', array($this, 'refresh'));
 
         // Plugin actions for other tasks
-        $this->register_action('plugin.roundrive', array($this, 'actions'));
+        $this->register_action('plugin.roundav', array($this, 'actions'));
 
 
         // Register task
-        $this->register_task('roundrive');
+        $this->register_task('roundav');
 
         // Register plugin task actions
         $this->register_action('index', array($this, 'actions'));
@@ -62,7 +62,7 @@ class roundrive extends rcube_plugin
     }
 
     /**
-     * Creates roundrive_engine instance
+     * Creates roundav_engine instance
      */
     private function engine()
     {
@@ -70,9 +70,9 @@ class roundrive extends rcube_plugin
             $this->load_config();
 
 
-            require_once $this->home . DIRECTORY_SEPARATOR . 'lib' . DIRECTORY_SEPARATOR . 'roundrive_files_engine.php';
+            require_once $this->home . DIRECTORY_SEPARATOR . 'lib' . DIRECTORY_SEPARATOR . 'roundav_files_engine.php';
 
-            $this->engine = new roundrive_files_engine($this);
+            $this->engine = new roundav_files_engine($this);
         }
 
         return $this->engine;

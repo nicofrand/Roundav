@@ -32,10 +32,10 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
         if (rcmail.env.action == 'compose') {
             var elem = $('#compose-attachments > div');
             var input = $(`<button class="btn btn-secondary attach cloud" type="button">
-                ${rcmail.gettext('roundrive.fromcloud')}
+                ${rcmail.gettext('roundav.fromcloud')}
             </button>`)
                     .attr('tabindex', $('button', elem).attr('tabindex') || 0)
-                    .click(function () { roundrive_selector_dialog(); });
+                    .click(function () { roundav_selector_dialog(); });
             elem.append('<br />', input);
 
             if (rcmail.gui_objects.filelist) {
@@ -45,13 +45,13 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
                     column_movable: false,
                     dblclick_time: rcmail.dblclick_time,
                 });
-                rcmail.file_list.addEventListener('select', function (o) { roundrive_list_select(o); })
+                rcmail.file_list.addEventListener('select', function (o) { roundav_list_select(o); })
                     .addEventListener('listupdate', function (e) { rcmail.triggerEvent('listupdate', e); });
 
                 rcmail.enable_command('files-sort', 'files-search', 'files-search-reset', true);
 
                 rcmail.file_list.init();
-                roundrive_list_coltypes();
+                roundav_list_coltypes();
             }
 
             // register some commands to skip warning message on compose page
@@ -62,12 +62,12 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
             var header_links = $('#message-header .header-links');
             if (header_links.length) {
                 header_links.append(
-                    $(`<a href="#" class="button filesaveall">${rcmail.gettext('roundrive.saveall')}</a>`)
-                        .on('click', function () { roundrive_directory_selector_dialog(); })
+                    $(`<a href="#" class="button filesaveall">${rcmail.gettext('roundav.saveall')}</a>`)
+                        .on('click', function () { roundav_directory_selector_dialog(); })
                 );
             }
 
-            rcmail.addEventListener('menu-open', roundrive_attach_menu_open);
+            rcmail.addEventListener('menu-open', roundav_attach_menu_open);
             rcmail.enable_command('folder-create', true);
         }
         // attachment preview
@@ -75,9 +75,9 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
             rcmail.enable_command('folder-create', true);
         }
 
-        roundrive_init();
+        roundav_init();
     }
-    else if (rcmail.task == 'roundrive') {
+    else if (rcmail.task == 'roundav') {
         if (rcmail.gui_objects.filelist) {
             rcmail.file_list = new rcube_list_widget(rcmail.gui_objects.filelist, {
                 multiselect: true,
@@ -87,25 +87,25 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
                 dblclick_time: rcmail.dblclick_time,
             });
             /*
-      rcmail.file_list.row_init = function(o){ roundrive_init_file_row(o); };
+      rcmail.file_list.row_init = function(o){ roundav_init_file_row(o); };
       rcmail.file_list.addEventListener('dblclick', function(o){ p.msglist_dbl_click(o); });
       rcmail.file_list.addEventListener('click', function(o){ p.msglist_click(o); });
       rcmail.file_list.addEventListener('keypress', function(o){ p.msglist_keypress(o); });
       rcmail.file_list.addEventListener('dragstart', function(o){ p.drag_start(o); });
       rcmail.file_list.addEventListener('dragmove', function(e){ p.drag_move(e); });
 */
-            rcmail.file_list.addEventListener('dblclick', function (o) { roundrive_list_dblclick(o); })
-                .addEventListener('select', function (o) { roundrive_list_select(o); })
-                .addEventListener('keypress', function (o) { roundrive_list_keypress(o); })
-                .addEventListener('dragend', function (e) { roundrive_drag_end(e); })
-                .addEventListener('column_replace', function (e) { roundrive_set_coltypes(e); })
+            rcmail.file_list.addEventListener('dblclick', function (o) { roundav_list_dblclick(o); })
+                .addEventListener('select', function (o) { roundav_list_select(o); })
+                .addEventListener('keypress', function (o) { roundav_list_keypress(o); })
+                .addEventListener('dragend', function (e) { roundav_drag_end(e); })
+                .addEventListener('column_replace', function (e) { roundav_set_coltypes(e); })
                 .addEventListener('listupdate', function (e) { rcmail.triggerEvent('listupdate', e); });
 
             rcmail.enable_command('menu-open', 'menu-save', 'files-sort', 'files-search', 'files-search-reset', 'folder-create', true);
 
             rcmail.file_list.init();
-            roundrive_list_coltypes();
-            roundrive_drag_drop_init($(rcmail.gui_objects.filelist).parents('.droptarget'));
+            roundav_list_coltypes();
+            roundav_drag_drop_init($(rcmail.gui_objects.filelist).parents('.droptarget'));
         }
 
         // "one file only" commands
@@ -113,7 +113,7 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
         // "one or more file" commands
         rcmail.env.file_commands_all = ['files-delete', 'files-move', 'files-copy'];
 
-        roundrive_init();
+        roundav_init();
 
         if (rcmail.env.action == 'open') {
             rcmail.enable_command('files-get', 'files-delete', rcmail.env.file);
@@ -132,12 +132,12 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
 /**********************************************************/
 
 // Initializes API object
-function roundrive_init()
+function roundav_init()
 {
     if (window.file_api) { return; }
 
     // Initialize application object (don't change var name!)
-    file_api = $.extend(new files_api(), new roundrive_ui());
+    file_api = $.extend(new files_api(), new roundav_ui());
 
     file_api.set_env({
         sort_col: 'name',
@@ -152,7 +152,7 @@ function roundrive_init()
 
 
 // folder selection dialog
-function roundrive_directory_selector_dialog(id)
+function roundav_directory_selector_dialog(id)
 {
     var dialog = $('#files-dialog'),
         input = $('#file-save-as-input'),
@@ -191,7 +191,7 @@ function roundrive_directory_selector_dialog(id)
 
     $('#foldercreatelink').attr('tabindex', 0);
 
-    buttons[rcmail.gettext('roundrive.save')] = function () {
+    buttons[rcmail.gettext('roundav.save')] = function () {
         var lock = rcmail.set_busy(true, 'saving'),
             request = {
                 act: 'save-file',
@@ -205,12 +205,12 @@ function roundrive_directory_selector_dialog(id)
             request.name = input.val();
         }
 
-        rcmail.http_post('plugin.roundrive', request, lock);
-        roundrive_dialog_close(this);
+        rcmail.http_post('plugin.roundav', request, lock);
+        roundav_dialog_close(this);
     };
 
-    buttons[rcmail.gettext('roundrive.cancel')] = function () {
-        roundrive_dialog_close(this);
+    buttons[rcmail.gettext('roundav.cancel')] = function () {
+        roundav_dialog_close(this);
     };
 
     if (!rcmail.env.folders_loaded) {
@@ -221,8 +221,8 @@ function roundrive_directory_selector_dialog(id)
     }
 
     // show dialog window
-    roundrive_dialog_show(dialog, {
-        title: rcmail.gettext('roundrive.' + label),
+    roundav_dialog_show(dialog, {
+        title: rcmail.gettext('roundav.' + label),
         buttons: buttons,
         button_classes: ['mainaction'],
         minWidth: 300,
@@ -235,27 +235,27 @@ function roundrive_directory_selector_dialog(id)
     if (rcmail.is_framed() && !parent.rcmail.folder_create) {
         parent.rcmail.enable_command('folder-create', true);
         parent.rcmail.folder_create = function () {
-            win.roundrive_folder_create_dialog();
+            win.roundav_folder_create_dialog();
         };
     }
 }
 
 // file selection dialog
-function roundrive_selector_dialog()
+function roundav_selector_dialog()
 {
     var dialog = $('#files-compose-dialog'), buttons = {};
 
-    buttons[rcmail.gettext('roundrive.attachsel')] = function () {
+    buttons[rcmail.gettext('roundav.attachsel')] = function () {
         var list = [];
         $('#filelist tr.selected').each(function () {
             list.push($(this).data('file'));
         });
 
-        roundrive_dialog_close(this);
+        roundav_dialog_close(this);
 
         if (list.length) {
             // display upload indicator and cancel button
-            var content = '<span>' + rcmail.get_label('roundrive.attaching') + '</span>',
+            var content = '<span>' + rcmail.get_label('roundav.attaching') + '</span>',
                 id = new Date().getTime();
 
             rcmail.add2attachment_list(id, {
@@ -263,7 +263,7 @@ function roundrive_selector_dialog()
             });
 
             // send request
-            rcmail.http_post('plugin.roundrive', {
+            rcmail.http_post('plugin.roundav', {
                 act: 'attach-file',
                 files: list,
                 id: rcmail.env.compose_id,
@@ -272,13 +272,13 @@ function roundrive_selector_dialog()
         }
     };
 
-    buttons[rcmail.gettext('roundrive.cancel')] = function () {
-        roundrive_dialog_close(this);
+    buttons[rcmail.gettext('roundav.cancel')] = function () {
+        roundav_dialog_close(this);
     };
 
     // show dialog window
-    roundrive_dialog_show(dialog, {
-        title: rcmail.gettext('roundrive.selectfiles'),
+    roundav_dialog_show(dialog, {
+        title: rcmail.gettext('roundav.selectfiles'),
         buttons: buttons,
         button_classes: ['mainaction'],
         minWidth: 500,
@@ -296,26 +296,26 @@ function roundrive_selector_dialog()
     }
 }
 
-function roundrive_attach_menu_open(p)
+function roundav_attach_menu_open(p)
 {
     if (!p || !p.props || p.props.menu != 'attachmentmenu') { return; }
 
     var id = p.props.id;
 
     $('#attachmenusaveas').unbind('click').attr('onclick', '').click(function (e) {
-        return roundrive_directory_selector_dialog(id);
+        return roundav_directory_selector_dialog(id);
     });
 }
 
 // folder creation dialog
-function roundrive_folder_create_dialog()
+function roundav_folder_create_dialog()
 {
     var dialog = $('#files-folder-create-dialog'),
         buttons = {},
         select = $('select[name="parent"]', dialog).html(''),
         input = $('input[name="name"]', dialog).val('');
 
-    buttons[rcmail.gettext('roundrive.create')] = function () {
+    buttons[rcmail.gettext('roundav.create')] = function () {
         var folder = '', name = input.val(), parent = select.val();
 
         if (!name) { return; }
@@ -325,22 +325,22 @@ function roundrive_folder_create_dialog()
         folder += name;
 
         file_api.folder_create(folder);
-        roundrive_dialog_close(this);
+        roundav_dialog_close(this);
     };
 
-    buttons[rcmail.gettext('roundrive.cancel')] = function () {
-        roundrive_dialog_close(this);
+    buttons[rcmail.gettext('roundav.cancel')] = function () {
+        roundav_dialog_close(this);
     };
 
     // show dialog window
-    roundrive_dialog_show(dialog, {
-        title: rcmail.gettext('roundrive.foldercreate'),
+    roundav_dialog_show(dialog, {
+        title: rcmail.gettext('roundav.foldercreate'),
         buttons: buttons,
         button_classes: ['mainaction'],
     });
 
     // Fix submitting form with Enter
-    $('form', dialog).submit(roundrive_dialog_submit_handler);
+    $('form', dialog).submit(roundav_dialog_submit_handler);
 
     // build parent selector
     select.append($('<option>').val('').text('---'));
@@ -356,7 +356,7 @@ function roundrive_folder_create_dialog()
 }
 
 // folder edit dialog
-function roundrive_folder_edit_dialog()
+function roundav_folder_edit_dialog()
 {
     var dialog = $('#files-folder-edit-dialog'),
         buttons = {}, options = [],
@@ -367,7 +367,7 @@ function roundrive_folder_edit_dialog()
         select = $('select[name="parent"]', dialog).html(''),
         input = $('input[name="name"]', dialog).val(folder);
 
-    buttons[rcmail.gettext('roundrive.save')] = function () {
+    buttons[rcmail.gettext('roundav.save')] = function () {
         var folder = '', name = input.val(), parent = select.val();
 
         if (!name) { return; }
@@ -377,22 +377,22 @@ function roundrive_folder_edit_dialog()
         folder += name;
 
         file_api.folder_rename(file_api.env.folder, folder);
-        roundrive_dialog_close(this);
+        roundav_dialog_close(this);
     };
 
-    buttons[rcmail.gettext('roundrive.cancel')] = function () {
-        roundrive_dialog_close(this);
+    buttons[rcmail.gettext('roundav.cancel')] = function () {
+        roundav_dialog_close(this);
     };
 
     // show dialog window
-    roundrive_dialog_show(dialog, {
-        title: rcmail.gettext('roundrive.folderedit'),
+    roundav_dialog_show(dialog, {
+        title: rcmail.gettext('roundav.folderedit'),
         buttons: buttons,
         button_classes: ['mainaction'],
     });
 
     // Fix submitting form with Enter
-    $('form', dialog).submit(roundrive_dialog_submit_handler);
+    $('form', dialog).submit(roundav_dialog_submit_handler);
 
     // build parent selector
     options.push($('<option>').val('').text('---'));
@@ -408,13 +408,13 @@ function roundrive_folder_edit_dialog()
 }
 
 // folder mounting dialog
-function roundrive_folder_mount_dialog()
+function roundav_folder_mount_dialog()
 {
-    var args = { buttons: {}, title: rcmail.gettext('roundrive.foldermount') },
+    var args = { buttons: {}, title: rcmail.gettext('roundav.foldermount') },
         dialog = $('#files-folder-mount-dialog'),
         input = $('#folder-mount-name').val('');
 
-    args.buttons[rcmail.gettext('roundrive.save')] = function () {
+    args.buttons[rcmail.gettext('roundav.save')] = function () {
         var args = {}, folder = input.val(),
             driver = $('input[name="driver"]:checked', dialog).val();
 
@@ -434,11 +434,11 @@ function roundrive_folder_mount_dialog()
         });
 
         file_api.folder_mount(args);
-        roundrive_dialog_close(this);
+        roundav_dialog_close(this);
     };
 
-    args.buttons[rcmail.gettext('roundrive.cancel')] = function () {
-        roundrive_dialog_close(this);
+    args.buttons[rcmail.gettext('roundav.cancel')] = function () {
+        roundav_dialog_close(this);
     };
 
     // close folderoption menu
@@ -461,20 +461,20 @@ function roundrive_folder_mount_dialog()
     args.button_classes = ['mainaction'];
 
     // show dialog window
-    roundrive_dialog_show(dialog, args, function () {
+    roundav_dialog_show(dialog, args, function () {
         $('td.source:first', dialog).click();
         input.focus();
     });
 }
 
 // file edition dialog
-function roundrive_file_edit_dialog(file)
+function roundav_file_edit_dialog(file)
 {
     var dialog = $('#files-file-edit-dialog'),
         buttons = {}, name = file_api.file_name(file);
     input = $('input[name="name"]', dialog).val(name);
 
-    buttons[rcmail.gettext('roundrive.save')] = function () {
+    buttons[rcmail.gettext('roundav.save')] = function () {
         var folder = file_api.file_path(file), name = input.val();
 
         if (!name) { return; }
@@ -483,24 +483,24 @@ function roundrive_file_edit_dialog(file)
 
         // @TODO: now we only update filename
         if (name != file) { file_api.file_rename(file, name); }
-        roundrive_dialog_close(this);
+        roundav_dialog_close(this);
     };
-    buttons[rcmail.gettext('roundrive.cancel')] = function () {
-        roundrive_dialog_close(this);
+    buttons[rcmail.gettext('roundav.cancel')] = function () {
+        roundav_dialog_close(this);
     };
 
     // Fix submitting form with Enter
-    $('form', dialog).submit(roundrive_dialog_submit_handler);
+    $('form', dialog).submit(roundav_dialog_submit_handler);
 
     // show dialog window
-    roundrive_dialog_show(dialog, {
-        title: rcmail.gettext('roundrive.fileedit'),
+    roundav_dialog_show(dialog, {
+        title: rcmail.gettext('roundav.fileedit'),
         buttons: buttons,
         button_classes: ['mainaction'],
     });
 }
 
-function roundrive_dialog_show(content, params, onopen)
+function roundav_dialog_show(content, params, onopen)
 {
     params = $.extend({
         modal: true,
@@ -543,20 +543,20 @@ function roundrive_dialog_show(content, params, onopen)
 }
 
 // Handle form submit with Enter key, click first dialog button instead
-function roundrive_dialog_submit_handler()
+function roundav_dialog_submit_handler()
 {
     $(this).parents('.ui-dialog').find('.ui-button').first().click();
     return false;
 }
 
 // Hides dialog
-function roundrive_dialog_close(dialog)
+function roundav_dialog_close(dialog)
 {
     (rcmail.is_framed() ? window.parent : window).$(dialog).dialog('close');
 }
 
 // smart upload button
-function roundrive_upload_input(button)
+function roundav_upload_input(button)
 {
     var link = $(button),
         file = $('<input>'),
@@ -614,7 +614,7 @@ function roundrive_upload_input(button)
 
 // for reordering column array (Konqueror workaround)
 // and for setting some message list global variables
-roundrive_list_coltypes = function ()
+roundav_list_coltypes = function ()
 {
     var n, list = rcmail.file_list;
 
@@ -628,7 +628,7 @@ roundrive_list_coltypes = function ()
     list.init_header();
 };
 
-roundrive_set_list_options = function (cols, sort_col, sort_order)
+roundav_set_list_options = function (cols, sort_col, sort_order)
 {
     var update = 0, i, idx, name, newcols = [], oldcols = rcmail.env.coltypes;
 
@@ -661,14 +661,14 @@ roundrive_set_list_options = function (cols, sort_col, sort_order)
     if (update == 1) { rcmail.command('files-list', { sort: sort_col, reverse: sort_order == 'DESC' }); }
     else if (update) {
         rcmail.http_post('files/prefs', {
-            roundrive_list_cols: oldcols,
-            roundrive_sort_col: sort_col,
-            roundrive_sort_order: sort_order,
+            roundav_list_cols: oldcols,
+            roundav_sort_col: sort_col,
+            roundav_sort_order: sort_order,
         }, rcmail.set_busy(true, 'loading'));
     }
 };
 
-roundrive_set_coltypes = function (list)
+roundav_set_coltypes = function (list)
 {
     var i, found, name, cols = list.list.tHead.rows[0].cells;
 
@@ -683,15 +683,15 @@ roundrive_set_coltypes = function (list)
     //    rcmail.env.subject_col = found;
     rcmail.env.subject_col = list.subject_col;
 
-    rcmail.http_post('files/prefs', { roundrive_list_cols: rcmail.env.coltypes });
+    rcmail.http_post('files/prefs', { roundav_list_cols: rcmail.env.coltypes });
 };
 
-roundrive_list_dblclick = function (list)
+roundav_list_dblclick = function (list)
 {
     rcmail.command('files-open');
 };
 
-roundrive_list_select = function (list)
+roundav_list_select = function (list)
 {
     var selected = list.selection.length;
 
@@ -712,7 +712,7 @@ roundrive_list_select = function (list)
     /*
     ) {
 //      caps = this.browser_capabilities().join();
-      href = '?' + $.param({_task: 'roundrive', _action: 'open', file: file, viewer: viewer == 2 ? 1 : 0});
+      href = '?' + $.param({_task: 'roundav', _action: 'open', file: file, viewer: viewer == 2 ? 1 : 0});
       var win = window.open(href, rcmail.html_identifier('rcubefile'+file));
       if (win)
         setTimeout(function() { win.focus(); }, 10);
@@ -721,7 +721,7 @@ roundrive_list_select = function (list)
     rcmail.enable_command('files-open', rcmail.env.viewer);
 };
 
-roundrive_list_keypress = function (list)
+roundav_list_keypress = function (list)
 {
     if (list.modkey == CONTROL_KEY) { return; }
 
@@ -729,7 +729,7 @@ roundrive_list_keypress = function (list)
     else if (list.key_pressed == list.DELETE_KEY || list.key_pressed == list.BACKSPACE_KEY) { rcmail.command('files-delete'); }
 };
 
-roundrive_drag_end = function (e)
+roundav_drag_end = function (e)
 {
     var folder = $('#files-folder-list li.droptarget').removeClass('droptarget');
 
@@ -750,7 +750,7 @@ roundrive_drag_end = function (e)
     }
 };
 
-roundrive_drag_menu_action = function (command)
+roundav_drag_menu_action = function (command)
 {
     var menu = rcmail.gui_objects.file_dragmenu;
 
@@ -759,7 +759,7 @@ roundrive_drag_menu_action = function (command)
     rcmail.command(command, rcmail.env.drag_target);
 };
 
-roundrive_selected = function ()
+roundav_selected = function ()
 {
     var files = [];
     $.each(rcmail.file_list.get_selection(), function (i, v) {
@@ -771,7 +771,7 @@ roundrive_selected = function ()
     return files;
 };
 
-roundrive_frame_load = function (frame)
+roundav_frame_load = function (frame)
 {
     var win = frame.contentWindow;
 
@@ -790,7 +790,7 @@ roundrive_frame_load = function (frame)
 };
 
 // activate html5 file drop feature (if browser supports it)
-roundrive_drag_drop_init = function (container)
+roundav_drag_drop_init = function (container)
 {
     if (!window.FormData && !(window.XMLHttpRequest && XMLHttpRequest.prototype && XMLHttpRequest.prototype.sendAsBinary)) {
         return;
@@ -806,20 +806,20 @@ roundrive_drag_drop_init = function (container)
     });
 
     container.bind('dragover dragleave', function (e) {
-        return roundrive_drag_hover(e);
+        return roundav_drag_hover(e);
     });
     container.children('div').bind('dragover dragleave', function (e) {
-        return roundrive_drag_hover(e);
+        return roundav_drag_hover(e);
     });
     container.get(0).addEventListener('drop', function (e) {
         // abort event and reset UI
-        roundrive_drag_hover(e);
+        roundav_drag_hover(e);
         return file_api.file_drop(e);
     }, false);
 };
 
 // handler for drag/drop on element
-roundrive_drag_hover = function (e)
+roundav_drag_hover = function (e)
 {
     if (!file_api.env.folder) { return; }
 
@@ -834,7 +834,7 @@ roundrive_drag_hover = function (e)
 };
 
 // returns localized file size
-roundrive_file_size = function (size)
+roundav_file_size = function (size)
 {
     var i, units = ['GB', 'MB', 'KB', 'B'];
 
@@ -845,7 +845,7 @@ roundrive_file_size = function (size)
     return size;
 };
 
-roundrive_progress_str = function (param)
+roundav_progress_str = function (param)
 {
     var current, total = file_api.file_size(param.total).toUpperCase();
 
@@ -854,7 +854,7 @@ roundrive_progress_str = function (param)
     else if (total.indexOf('KB') > 0) { current = parseInt(param.current / 1024); }
     else { current = param.current; }
 
-    total = roundrive_file_size(param.total);
+    total = roundav_file_size(param.total);
 
     return rcmail.gettext('uploadprogress')
         .replace(/\$percent/, param.percent + '%')
@@ -878,7 +878,7 @@ rcube_webmail.prototype.files_sort = function (props)
     // set table header and update env
     this.set_list_sorting(sort_col, sort_order);
 
-    this.http_post('files/prefs', { roundrive_sort_col: sort_col, roundrive_sort_order: sort_order });
+    this.http_post('files/prefs', { roundav_sort_col: sort_col, roundav_sort_order: sort_order });
 
     params.sort = sort_col;
     params.reverse = sort_order == 'DESC';
@@ -903,26 +903,26 @@ rcube_webmail.prototype.files_search_reset = function ()
 
 rcube_webmail.prototype.files_folder_delete = function ()
 {
-    if (confirm(this.get_label('roundrive.folderdeleteconfirm'))) { file_api.folder_delete(file_api.env.folder); }
+    if (confirm(this.get_label('roundav.folderdeleteconfirm'))) { file_api.folder_delete(file_api.env.folder); }
 };
 
 rcube_webmail.prototype.files_delete = function ()
 {
-    if (!confirm(this.get_label('roundrive.filedeleteconfirm'))) { return; }
+    if (!confirm(this.get_label('roundav.filedeleteconfirm'))) { return; }
 
-    var files = this.env.file ? [this.env.file] : roundrive_selected();
+    var files = this.env.file ? [this.env.file] : roundav_selected();
     file_api.file_delete(files);
 };
 
 rcube_webmail.prototype.files_move = function (folder)
 {
-    var files = roundrive_selected();
+    var files = roundav_selected();
     file_api.file_move(files, folder);
 };
 
 rcube_webmail.prototype.files_copy = function (folder)
 {
-    var files = roundrive_selected();
+    var files = roundav_selected();
     file_api.file_copy(files, folder);
 };
 
@@ -943,20 +943,20 @@ rcube_webmail.prototype.files_list_update = function (head)
 
     list.clear();
     $('thead', list.fixed_header ? list.fixed_header : list.list).html(head);
-    roundrive_list_coltypes();
+    roundav_list_coltypes();
     file_api.file_list();
 };
 
 rcube_webmail.prototype.files_get = function ()
 {
-    var files = this.env.file ? [this.env.file] : roundrive_selected();
+    var files = this.env.file ? [this.env.file] : roundav_selected();
 
     if (files.length == 1) { file_api.file_get(files[0], { 'force-download': true }); }
 };
 
 rcube_webmail.prototype.files_open = function ()
 {
-    var files = roundrive_selected();
+    var files = roundav_selected();
 
     if (files.length == 1) { file_api.file_open(files[0], rcmail.env.viewer); }
 };
@@ -1035,17 +1035,17 @@ rcube_webmail.prototype.files_set_quota = function (p)
 
 rcube_webmail.prototype.folder_create = function ()
 {
-    roundrive_folder_create_dialog();
+    roundav_folder_create_dialog();
 };
 
 rcube_webmail.prototype.folder_rename = function ()
 {
-    roundrive_folder_edit_dialog();
+    roundav_folder_edit_dialog();
 };
 
 rcube_webmail.prototype.folder_mount = function ()
 {
-    roundrive_folder_mount_dialog();
+    roundav_folder_mount_dialog();
 };
 
 
@@ -1053,7 +1053,7 @@ rcube_webmail.prototype.folder_mount = function ()
 /** *******          Files API handler            **********/
 /**********************************************************/
 
-function roundrive_ui()
+function roundav_ui()
 {
     this.requests = {};
     this.uploads = [];
@@ -1142,7 +1142,7 @@ function roundrive_ui()
             var row = $('<li class="mailbox collection ' + n + '"></li>');
 
             row.attr({ id: 'folder-collection-' + n, tabindex: 0 })
-                .append($('<span class="name"></span>').text(rcmail.gettext('roundrive.collection_' + n)))
+                .append($('<span class="name"></span>').text(rcmail.gettext('roundav.collection_' + n)))
                 .on('click', function () { file_api.folder_select(n, true); });
 
             list.append(row);
@@ -1237,7 +1237,7 @@ function roundrive_ui()
     // folder create request
     this.folder_create = function (folder)
     {
-        this.req = this.set_busy(true, 'roundrive.foldercreating');
+        this.req = this.set_busy(true, 'roundav.foldercreating');
         this.request('folder_create', { folder: folder }, 'folder_create_response');
     };
 
@@ -1246,7 +1246,7 @@ function roundrive_ui()
     {
         if (!this.response(response)) { return; }
 
-        this.display_message('roundrive.foldercreatenotice', 'confirmation');
+        this.display_message('roundav.foldercreatenotice', 'confirmation');
 
         // refresh folders list
         this.folder_list();
@@ -1258,7 +1258,7 @@ function roundrive_ui()
         if (folder == new_name) { return; }
 
         this.env.folder_rename = new_name;
-        this.req = this.set_busy(true, 'roundrive.folderupdating');
+        this.req = this.set_busy(true, 'roundav.folderupdating');
         this.request('folder_move', { folder: folder, new: new_name }, 'folder_rename_response');
     };
 
@@ -1267,7 +1267,7 @@ function roundrive_ui()
     {
         if (!this.response(response)) { return; }
 
-        this.display_message('roundrive.folderupdatenotice', 'confirmation');
+        this.display_message('roundav.folderupdatenotice', 'confirmation');
 
         // refresh folders and files list
         this.env.folder = this.env.folder_rename;
@@ -1277,7 +1277,7 @@ function roundrive_ui()
     // folder mount (external storage) request
     this.folder_mount = function (data)
     {
-        this.req = this.set_busy(true, 'roundrive.foldermounting');
+        this.req = this.set_busy(true, 'roundav.foldermounting');
         this.request('folder_create', data, 'folder_mount_response');
     };
 
@@ -1286,7 +1286,7 @@ function roundrive_ui()
     {
         if (!this.response(response)) { return; }
 
-        this.display_message('roundrive.foldermountnotice', 'confirmation');
+        this.display_message('roundav.foldermountnotice', 'confirmation');
 
         // refresh folders list
         this.folder_list();
@@ -1295,7 +1295,7 @@ function roundrive_ui()
     // folder delete request
     this.folder_delete = function (folder)
     {
-        this.req = this.set_busy(true, 'roundrive.folderdeleting');
+        this.req = this.set_busy(true, 'roundav.folderdeleting');
         this.request('folder_delete', { folder: folder }, 'folder_delete_response');
     };
 
@@ -1306,7 +1306,7 @@ function roundrive_ui()
 
         this.env.folder = null;
         rcmail.enable_command('files-folder-delete', 'folder-rename', 'files-list', false);
-        this.display_message('roundrive.folderdeletenotice', 'confirmation');
+        this.display_message('roundav.folderdeletenotice', 'confirmation');
 
         // refresh folders list
         this.folder_list();
@@ -1537,7 +1537,7 @@ function roundrive_ui()
             .attr({ id: 'rcmrow' + index, 'data-file': file, 'data-type': data.type });
 
         $('td.options > span', row).click(function (e) {
-            roundrive_file_edit_dialog(file);
+            roundav_file_edit_dialog(file);
         });
 
         // collection (or search) lists files from all folders
@@ -1568,13 +1568,13 @@ function roundrive_ui()
     {
         if (!params) { params = {}; }
 
-        rcmail.redirect(rcmail.url('roundrive/file_api') + '&method=file_get&file=' + file);
+        rcmail.redirect(rcmail.url('roundav/file_api') + '&method=file_get&file=' + file);
     };
 
     // file(s) delete request
     this.file_delete = function (files)
     {
-        this.req = this.set_busy(true, 'roundrive.filedeleting');
+        this.req = this.set_busy(true, 'roundav.filedeleting');
         this.request('file_delete', { file: files }, 'file_delete_response');
     };
 
@@ -1585,7 +1585,7 @@ function roundrive_ui()
 
         var rco, dir, self = this;
 
-        this.display_message('roundrive.filedeletenotice', 'confirmation');
+        this.display_message('roundav.filedeletenotice', 'confirmation');
 
         if (rcmail.env.file) {
             rco = rcmail.opener();
@@ -1621,7 +1621,7 @@ function roundrive_ui()
 
         if (!count) { return; }
 
-        this.req = this.set_busy(true, 'roundrive.filemoving');
+        this.req = this.set_busy(true, 'roundav.filemoving');
         this.request('file_move', { file: list }, 'file_move_response');
     };
 
@@ -1632,7 +1632,7 @@ function roundrive_ui()
 
         if (response.result && response.result.already_exist && response.result.already_exist.length) { this.file_move_ask_user(response.result.already_exist, true); }
         else {
-            this.display_message('roundrive.filemovenotice', 'confirmation');
+            this.display_message('roundav.filemovenotice', 'confirmation');
             this.file_list();
         }
     };
@@ -1655,7 +1655,7 @@ function roundrive_ui()
 
         if (!count) { return; }
 
-        this.req = this.set_busy(true, 'roundrive.filecopying');
+        this.req = this.set_busy(true, 'roundav.filecopying');
         this.request('file_copy', { file: list }, 'file_copy_response');
     };
 
@@ -1666,7 +1666,7 @@ function roundrive_ui()
 
         if (response.result && response.result.already_exist && response.result.already_exist.length) { this.file_move_ask_user(response.result.already_exist); }
         else {
-            this.display_message('roundrive.filecopynotice', 'confirmation');
+            this.display_message('roundav.filecopynotice', 'confirmation');
             this.quota();
         }
     };
@@ -1677,10 +1677,10 @@ function roundrive_ui()
     this.file_move_ask_user = function (list, move)
     {
         var file = list[0], buttons = {},
-            text = rcmail.gettext('roundrive.filemoveconfirm').replace('$file', file.dst);
+            text = rcmail.gettext('roundav.filemoveconfirm').replace('$file', file.dst);
         dialog = $('<div></div>');
 
-        buttons[rcmail.gettext('roundrive.fileoverwrite')] = function () {
+        buttons[rcmail.gettext('roundav.fileoverwrite')] = function () {
             var file = list.shift(), f = {},
                 action = move ? 'file_move' : 'file_copy';
 
@@ -1688,16 +1688,16 @@ function roundrive_ui()
             file_api.file_move_ask_list = list;
             file_api.file_move_ask_mode = move;
             dialog.dialog('destroy').remove();
-            file_api.req = file_api.set_busy(true, move ? 'roundrive.filemoving' : 'roundrive.filecopying');
+            file_api.req = file_api.set_busy(true, move ? 'roundav.filemoving' : 'roundav.filecopying');
             file_api.request(action, { file: f, overwrite: 1 }, 'file_move_ask_user_response');
         };
 
-        if (list.length > 1) { buttons[rcmail.gettext('roundrive.fileoverwriteall')] = function () {
+        if (list.length > 1) { buttons[rcmail.gettext('roundav.fileoverwriteall')] = function () {
             var f = {}, action = move ? 'file_move' : 'file_copy';
 
             $.each(list, function () { f[this.src] = this.dst; });
             dialog.dialog('destroy').remove();
-            file_api.req = file_api.set_busy(true, move ? 'roundrive.filemoving' : 'roundrive.filecopying');
+            file_api.req = file_api.set_busy(true, move ? 'roundav.filemoving' : 'roundav.filecopying');
             file_api.request(action, { file: f, overwrite: 1 }, action + '_response');
         }; }
 
@@ -1709,15 +1709,15 @@ function roundrive_ui()
             else if (move) { file_api.file_list(); }
         };
 
-        buttons[rcmail.gettext('roundrive.fileskip')] = skip_func;
+        buttons[rcmail.gettext('roundav.fileskip')] = skip_func;
 
-        if (list.length > 1) { buttons[rcmail.gettext('roundrive.fileskipall')] = function () {
+        if (list.length > 1) { buttons[rcmail.gettext('roundav.fileskipall')] = function () {
             dialog.dialog('destroy').remove();
             if (move) { file_api.file_list(); }
         }; }
 
         // open jquery UI dialog
-        roundrive_dialog_show(dialog.html(text), {
+        roundav_dialog_show(dialog.html(text), {
             close: skip_func,
             buttons: buttons,
             minWidth: 400,
@@ -1734,7 +1734,7 @@ function roundrive_ui()
 
         if (list && list.length) { this.file_move_ask_user(list, mode); }
         else {
-            this.display_message('roundrive.file' + (move ? 'move' : 'copy') + 'notice', 'confirmation');
+            this.display_message('roundav.file' + (move ? 'move' : 'copy') + 'notice', 'confirmation');
             if (move) { this.file_list(); }
         }
     };
@@ -1742,7 +1742,7 @@ function roundrive_ui()
     // file(s) rename request
     this.file_rename = function (oldfile, newfile)
     {
-        this.req = this.set_busy(true, 'roundrive.fileupdating');
+        this.req = this.set_busy(true, 'roundav.fileupdating');
         this.request('file_move', { file: oldfile, new: newfile }, 'file_rename_response');
     };
 
@@ -1805,7 +1805,7 @@ function roundrive_ui()
             for (i = 0; i < files.length; i++) { size += files[i].size || files[i].fileSize; }
 
             if (size > maxsize) {
-                alert(rcmail.get_label('roundrive.uploadsizeerror').replace('$size', roundrive_file_size(maxsize)));
+                alert(rcmail.get_label('roundav.uploadsizeerror').replace('$size', roundav_file_size(maxsize)));
                 return false;
             }
         }
@@ -1983,7 +1983,7 @@ function roundrive_ui()
         if (param.total) {
             param.name = param.id;
 
-            if (!param.done) { param.text = roundrive_progress_str(param); }
+            if (!param.done) { param.text = roundav_progress_str(param); }
 
             rcmail.display_progress(param);
         }
@@ -2004,7 +2004,7 @@ function roundrive_ui()
     this.file_open = function (file, viewer)
     {
         var href = '?' + $.param({
-            _task: 'roundrive', _action: 'open', file: file, viewer: viewer == 2 ? 1 : 0,
+            _task: 'roundav', _action: 'open', file: file, viewer: viewer == 2 ? 1 : 0,
         });
         rcmail.open_window(href, false, true);
     };
@@ -2063,7 +2063,7 @@ function roundrive_ui()
         dialog.find('table.propform').remove();
         $('.auth-options', dialog).before(content);
 
-        args.buttons[this.t('roundrive.save')] = function () {
+        args.buttons[this.t('roundav.save')] = function () {
             var data = { folder: label, list: 1 };
 
             $('input', dialog).each(function () {
@@ -2071,21 +2071,21 @@ function roundrive_ui()
             });
 
             file_api.open_dialog = this;
-            file_api.req = file_api.set_busy(true, 'roundrive.authenticating');
+            file_api.req = file_api.set_busy(true, 'roundav.authenticating');
             file_api.request('folder_auth', data, 'folder_auth_response');
         };
 
-        args.buttons[this.t('roundrive.cancel')] = function () {
+        args.buttons[this.t('roundav.cancel')] = function () {
             delete file_api.auth_errors[label];
-            roundrive_dialog_close(this);
+            roundav_dialog_close(this);
             // go to the next one
             file_api.folder_list_auth_errors();
         };
 
-        args.title = this.t('roundrive.folderauthtitle').replace('$title', label);
+        args.title = this.t('roundav.folderauthtitle').replace('$title', label);
 
         // show dialog window
-        roundrive_dialog_show(dialog, args, function () {
+        roundav_dialog_show(dialog, args, function () {
             // focus first empty input
             $('input', dialog).each(function () {
                 if (!this.value) {
@@ -2111,7 +2111,7 @@ function roundrive_ui()
         }
 
         delete this.auth_errors[folder];
-        roundrive_dialog_close(this.open_dialog);
+        roundav_dialog_close(this.open_dialog);
 
         // go to the next one
         this.folder_list_auth_errors();

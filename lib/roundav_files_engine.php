@@ -1,39 +1,13 @@
 <?php
-/**
- * Kolab files storage engine
- *
- * @version @package_version@
- * @author Thomas Payen <thomas.payen@apitech.fr>
- *
- * This plugin is inspired by kolab_files plugin
- * Use flysystem library : https://github.com/thephpleague/flysystem
- * With flysystem WebDAV adapter : https://github.com/thephpleague/flysystem-webdav
- *
- * Copyright (C) 2015 PNE Annuaire et Messagerie MEDDE/MLETR
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as
- * published by the Free Software Foundation, either version 3 of the
- * License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
- */
 
 use Sabre\DAV\Client;
 use League\Flysystem\Filesystem;
 use League\FlySystem\StorageAttributes;
 use League\Flysystem\WebDAV\WebDAVAdapter;
-
-class roundrive_files_engine
+class roundav_files_engine
 {
     /**
-     * @var roundrive
+     * @var roundav
      */
     private $plugin;
     /**
@@ -94,11 +68,11 @@ class roundrive_files_engine
                         'id'         => 'saveas',
                         'name'       => 'saveas',
                         'type'       => 'link',
-                        'onclick'    => 'roundrive_directory_selector_dialog()',
+                        'onclick'    => 'roundav_directory_selector_dialog()',
                         'class'      => 'button buttonPas saveas',
                         'classact'   => 'button saveas',
-                        'label'      => 'roundrive.save',
-                        'title'      => 'roundrive.saveto',
+                        'label'      => 'roundav.save',
+                        'title'      => 'roundav.saveto',
                         ), 'toolbar');
                 }
                 else {
@@ -112,7 +86,7 @@ class roundrive_files_engine
                         'class'      => 'icon active saveas',
                         'classact'   => 'icon active saveas',
                         'innerclass' => 'icon active saveas',
-                        'label'      => 'roundrive.saveto',
+                        'label'      => 'roundav.saveto',
                         ), 'attachmentmenu');
                 }
             }
@@ -123,18 +97,18 @@ class roundrive_files_engine
                 'folderauthtitle', 'authenticating'
             );
         }
-        else if ($this->rc->task == 'roundrive' && $this->rc->config->get('show_drive_task', true)) {
+        else if ($this->rc->task == 'roundav' && $this->rc->config->get('show_drive_task', true)) {
             $template = 'files';
         }
 
         // add taskbar button
         if (empty($_REQUEST['framed']) && $this->rc->config->get('show_drive_task', true)) {
             $this->plugin->add_button(array(
-                'command'    => 'roundrive',
+                'command'    => 'roundav',
                 'class'      => 'button-files',
                 'classsel'   => 'button-files button-selected',
                 'innerclass' => 'button-inner',
-                'label'      => 'roundrive.files',
+                'label'      => 'roundav.files',
                 ), 'taskbar');
         }
 
@@ -142,7 +116,7 @@ class roundrive_files_engine
 
         if (!empty($template)) {
             $this->plugin->include_script('file_api.js');
-            $this->plugin->include_script('roundrive.js');
+            $this->plugin->include_script('roundav.js');
 
             // register template objects for dialogs (and main interface)
             $this->rc->output->add_handlers(array(
@@ -156,10 +130,10 @@ class roundrive_files_engine
                 'filequotadisplay'   => array($this, 'quota_display'),
             ));
 
-            if ($this->rc->task != 'roundrive') {
+            if ($this->rc->task != 'roundav') {
                 // add dialog content at the end of page body
                 $this->rc->output->add_footer(
-                    $this->rc->output->parse('roundrive.' . $template, false, false));
+                    $this->rc->output->parse('roundav.' . $template, false, false));
             }
         }
     }
@@ -169,13 +143,13 @@ class roundrive_files_engine
      */
     public function actions()
     {
-        if ($this->rc->task == 'roundrive' && $this->rc->action == 'file_api') {
+        if ($this->rc->task == 'roundav' && $this->rc->action == 'file_api') {
           $action = rcube_utils::get_input_value('method', rcube_utils::INPUT_GPC);
         }
-        else if ($this->rc->task == 'roundrive' && $this->rc->action) {
+        else if ($this->rc->task == 'roundav' && $this->rc->action) {
             $action = $this->rc->action;
         }
-        else if ($this->rc->task != 'roundrive' && $_POST['act']) {
+        else if ($this->rc->task != 'roundav' && $_POST['act']) {
             $action = $_POST['act'];
         }
         else {
@@ -408,10 +382,10 @@ class roundrive_files_engine
     {
         // define list of cols to be displayed based on parameter or config
         if (empty($attrib['columns'])) {
-            $list_cols     = $this->rc->config->get('roundrive_list_cols');
+            $list_cols     = $this->rc->config->get('roundav_list_cols');
             $dont_override = $this->rc->config->get('dont_override');
             $a_show_cols = is_array($list_cols) ? $list_cols : array('name');
-            $this->rc->output->set_env('col_movable', !in_array('roundrive_list_cols', (array)$dont_override));
+            $this->rc->output->set_env('col_movable', !in_array('roundav_list_cols', (array)$dont_override));
         }
         else {
             $a_show_cols = preg_split('/[\s,;]+/', strip_quotes($attrib['columns']));
@@ -428,25 +402,25 @@ class roundrive_files_engine
         $attrib['columns'] = $a_show_cols;
 
         // save some variables for use in ajax list
-        $_SESSION['roundrive_list_attrib'] = $attrib;
+        $_SESSION['roundav_list_attrib'] = $attrib;
 
         // For list in dialog(s) remove all option-like columns
-        if ($this->rc->task != 'roundrive') {
+        if ($this->rc->task != 'roundav') {
             $a_show_cols = array_intersect($a_show_cols, $this->sort_cols);
         }
 
         // set default sort col/order to session
-        if (!isset($_SESSION['roundrive_sort_col']))
-            $_SESSION['roundrive_sort_col'] = $this->rc->config->get('roundrive_sort_col') ?: 'name';
-        if (!isset($_SESSION['roundrive_sort_order']))
-            $_SESSION['roundrive_sort_order'] = strtoupper($this->rc->config->get('roundrive_sort_order') ?: 'asc');
+        if (!isset($_SESSION['roundav_sort_col']))
+            $_SESSION['roundav_sort_col'] = $this->rc->config->get('roundav_sort_col') ?: 'name';
+        if (!isset($_SESSION['roundav_sort_order']))
+            $_SESSION['roundav_sort_order'] = strtoupper($this->rc->config->get('roundav_sort_order') ?: 'asc');
 
         // set client env
         $this->rc->output->add_gui_object('filelist', $attrib['id']);
-        $this->rc->output->set_env('sort_col', $_SESSION['roundrive_sort_col']);
-        $this->rc->output->set_env('sort_order', $_SESSION['roundrive_sort_order']);
+        $this->rc->output->set_env('sort_col', $_SESSION['roundav_sort_col']);
+        $this->rc->output->set_env('sort_order', $_SESSION['roundav_sort_order']);
         $this->rc->output->set_env('coltypes', $a_show_cols);
-        $this->rc->output->set_env('search_threads', $this->rc->config->get('roundrive_search_threads'));
+        $this->rc->output->set_env('search_threads', $this->rc->config->get('roundav_search_threads'));
 
         $this->rc->output->include_script('list.js');
 
@@ -471,8 +445,8 @@ class roundrive_files_engine
         $skin_path = $this->plugin->local_skin_path();
 
         // check to see if we have some settings for sorting
-        $sort_col   = $_SESSION['roundrive_sort_col'];
-        $sort_order = $_SESSION['roundrive_sort_order'];
+        $sort_col   = $_SESSION['roundav_sort_col'];
+        $sort_order = $_SESSION['roundav_sort_order'];
 
         $dont_override  = (array)$this->rc->config->get('dont_override');
         $disabled_sort  = in_array('message_sort_col', $dont_override);
@@ -546,11 +520,11 @@ class roundrive_files_engine
      */
     protected function file_list_update($prefs)
     {
-        $attrib = $_SESSION['roundrive_list_attrib'];
+        $attrib = $_SESSION['roundav_list_attrib'];
 
-        if (!empty($prefs['roundrive_list_cols'])) {
-            $attrib['columns'] = $prefs['roundrive_list_cols'];
-            $_SESSION['roundrive_list_attrib'] = $attrib;
+        if (!empty($prefs['roundav_list_cols'])) {
+            $attrib['columns'] = $prefs['roundav_list_cols'];
+            $_SESSION['roundav_list_attrib'] = $attrib;
         }
 
         $a_show_cols = $attrib['columns'];
@@ -609,13 +583,13 @@ class roundrive_files_engine
             return $frame;
         }
 
-        $href = $this->rc->url(array('task' => 'roundrive', 'action' => 'file_api')) . '&method=file_get&file='. urlencode($this->file_data['filename']);
+        $href = $this->rc->url(array('task' => 'roundav', 'action' => 'file_api')) . '&method=file_get&file='. urlencode($this->file_data['filename']);
 
         $this->rc->output->add_gui_object('preview_frame', $attrib['id']);
 
         $attrib['allowfullscreen'] = true;
         $attrib['src']             = $href;
-        $attrib['onload']          = 'roundrive_frame_load(this)';
+        $attrib['onload']          = 'roundav_frame_load(this)';
 
         return html::iframe($attrib);
     }
@@ -661,11 +635,11 @@ class roundrive_files_engine
         $this->rc->output->add_label('uploadprogress', 'GB', 'MB', 'KB', 'B');
         $this->rc->output->set_pagetitle($this->plugin->gettext('files'));
         $this->rc->output->set_env('file_mimetypes', $this->get_mimetypes());
-        $this->rc->output->set_env('files_quota', $_SESSION['roundrive_caps']['QUOTA']);
-        $this->rc->output->set_env('files_max_upload', $_SESSION['roundrive_caps']['MAX_UPLOAD']);
-        $this->rc->output->set_env('files_progress_name', $_SESSION['roundrive_caps']['PROGRESS_NAME']);
-        $this->rc->output->set_env('files_progress_time', $_SESSION['roundrive_caps']['PROGRESS_TIME']);
-        $this->rc->output->send('roundrive.files');
+        $this->rc->output->set_env('files_quota', $_SESSION['roundav_caps']['QUOTA']);
+        $this->rc->output->set_env('files_max_upload', $_SESSION['roundav_caps']['MAX_UPLOAD']);
+        $this->rc->output->set_env('files_progress_name', $_SESSION['roundav_caps']['PROGRESS_NAME']);
+        $this->rc->output->set_env('files_progress_time', $_SESSION['roundav_caps']['PROGRESS_TIME']);
+        $this->rc->output->send('roundav.files');
     }
 
     /**
@@ -676,9 +650,9 @@ class roundrive_files_engine
         $dont_override = (array)$this->rc->config->get('dont_override');
         $prefs = array();
         $opts  = array(
-            'roundrive_sort_col' => true,
-            'roundrive_sort_order' => true,
-            'roundrive_list_cols' => false,
+            'roundav_sort_col' => true,
+            'roundav_sort_order' => true,
+            'roundav_list_cols' => false,
         );
 
         foreach ($opts as $o => $sess) {
@@ -688,7 +662,7 @@ class roundrive_files_engine
                     $_SESSION[$o] = $prefs[$o];
                 }
 
-                if ($o == 'roundrive_list_cols') {
+                if ($o == 'roundav_list_cols') {
                     $update_list = true;
                 }
             }
@@ -741,7 +715,7 @@ class roundrive_files_engine
         $this->rc->output->set_env('file', $file);
         $this->rc->output->set_env('file_data', $this->file_data);
         $this->rc->output->set_pagetitle(rcube::Q($file));
-        $this->rc->output->send('roundrive.filepreview');
+        $this->rc->output->send('roundav.filepreview');
     }
 
     /**
@@ -953,12 +927,10 @@ class roundrive_files_engine
      */
     protected function action_folder_list() {
       $result = array(
-              'status' => 'OK',
-              'result' => array(),
-              'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
+        'status' => 'OK',
+        'result' => array(),
+        'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
       );
-
-      $forceRefresh = rcube_utils::get_input_value('force_refresh', rcube_utils::INPUT_GET);
 
       try {
         $filesPrefix = $this->plugin->gettext('files');

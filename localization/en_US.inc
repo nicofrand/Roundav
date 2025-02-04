@@ -1,6 +1,6 @@
 <?php
 /**
- * Localizations for the Roundrive plugin
+ * Localizations for the Roundav plugin
  *
  * @version @package_version@
  * @author Thomas Payen <thomas.payen@apitech.fr>

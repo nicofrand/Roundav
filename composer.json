@@ -1,4 +1,8 @@
 {
+    "name": "nicofrand/roundav",
+    "description": "Roundcube plugin allowing to save attachments to a WebDAV server & insert attachments from it",
+    "type": "roundcube-plugin",
+    "license": "AGPL-3.0-or-later",
     "require": {
         "sabre/dav": "^4.6",
         "league/flysystem": "^3.0",

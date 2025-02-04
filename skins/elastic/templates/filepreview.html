@@ -3,7 +3,7 @@
 <head>
 <title><roundcube:object name="pagetitle" /></title>
 <roundcube:include file="/includes/links.html" />
-<script src="plugins/roundrive/skins/elastic/ui.js" type="text/javascript"></script>
+<script src="plugins/roundav/skins/elastic/ui.js" type="text/javascript"></script>
 </head>
 <body class="files noscroll extwin">
 
@@ -11,25 +11,25 @@
 
 <div id="mainscreen">
 
-<h1 class="voice"><roundcube:label name="roundrive.filepreview" /></h1>
+<h1 class="voice"><roundcube:label name="roundav.filepreview" /></h1>
 
 <h2 id="aria-label-toolbar" class="voice"><roundcube:label name="arialabeltoolbar" /></h2>
 <div id="filestoolbar" class="toolbar" role="toolbar" aria-labelledby="aria-label-toolbar">
-    <roundcube:button command="files-get" type="link" class="button get disabled" classAct="button get" classSel="button get pressed" label="roundrive.get" title="roundrive.getfile" />
-    <roundcube:button command="files-edit" type="link" class="button edit disabled" classAct="button edit" classSel="button edit pressed" label="roundrive.edit" title="roundrive.editfile" />
-    <roundcube:button command="files-save" type="link" class="button save disabled" classAct="button save" classSel="button save pressed" label="roundrive.save" title="roundrive.savefile" style="display:none" />
-    <roundcube:button command="files-delete" type="link" class="button delete disabled" classAct="button delete" classSel="button delete pressed" label="delete" title="roundrive.deletefile" />
-    <roundcube:button command="files-print" type="link" class="button print disabled" classAct="button print" classSel="button print pressed" label="print" title="roundrive.printfile" />
+    <roundcube:button command="files-get" type="link" class="button get disabled" classAct="button get" classSel="button get pressed" label="roundav.get" title="roundav.getfile" />
+    <roundcube:button command="files-edit" type="link" class="button edit disabled" classAct="button edit" classSel="button edit pressed" label="roundav.edit" title="roundav.editfile" />
+    <roundcube:button command="files-save" type="link" class="button save disabled" classAct="button save" classSel="button save pressed" label="roundav.save" title="roundav.savefile" style="display:none" />
+    <roundcube:button command="files-delete" type="link" class="button delete disabled" classAct="button delete" classSel="button delete pressed" label="delete" title="roundav.deletefile" />
+    <roundcube:button command="files-print" type="link" class="button print disabled" classAct="button print" classSel="button print pressed" label="print" title="roundav.printfile" />
 </div>
 
-<h2 id="aria-label-fileprops" class="voice"><roundcube:label name="roundrive.arialabelfileprops" /></h2>
+<h2 id="aria-label-fileprops" class="voice"><roundcube:label name="roundav.arialabelfileprops" /></h2>
 <div id="fileinfobox" class="uibox listbox" aria-labelledby="aria-label-toolbar">
     <roundcube:object name="fileinfobox" id="fileinfo" class="listing" />
 </div>
 
 <div id="filecontent" class="uibox">
     <div class="iframebox">
-        <roundcube:object name="filepreviewframe" id="fileframe" frameborder="0" title="roundrive.arialabelfilecontent" />
+        <roundcube:object name="filepreviewframe" id="fileframe" frameborder="0" title="roundav.arialabelfilecontent" />
     </div>
 </div>
 
@@ -37,7 +37,7 @@
 
 <roundcube:include file="/includes/footer.html" />
 <script type="text/javascript">
-roundrive_ui_init();
+roundav_ui_init();
 </script>
 
 </body>
