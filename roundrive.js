@@ -26,6 +26,8 @@
  */
 
 window.rcmail && window.files_api && rcmail.addEventListener('init', function () {
+    var hasAttachments = rcmail.env.attachments && Object.keys(rcmail.env.attachments).length > 0;
+
     if (rcmail.task == 'mail') {
     // mail compose
         if (rcmail.env.action == 'compose') {
@@ -56,11 +58,11 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
             $.merge(rcmail.env.compose_commands, ['files-list', 'files-sort', 'files-search', 'files-search-reset']);
         }
         // mail preview
-        else if (rcmail.env.action == 'show' || rcmail.env.action == 'preview') {
+        else if ((rcmail.env.action == 'show' || rcmail.env.action == 'preview') && hasAttachments) {
             var header_links = $('#message-header .header-links');
             if (header_links.length) {
                 header_links.append(
-                    $('<a href="#" class="button filesaveall">' + rcmail.gettext('roundrive.saveall') + '</a>')
+                    $(`<a href="#" class="button filesaveall">${rcmail.gettext('roundrive.saveall')}</a>`)
                         .on('click', function () { roundrive_directory_selector_dialog(); })
                 );
             }
