@@ -26,6 +26,8 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+include_once(__DIR__.'/vendor/autoload.php');
+
 class roundrive extends rcube_plugin
 {
     // all task excluding 'login' and 'logout'

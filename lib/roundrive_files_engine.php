@@ -30,8 +30,6 @@ use League\Flysystem\Filesystem;
 use League\FlySystem\StorageAttributes;
 use League\Flysystem\WebDAV\WebDAVAdapter;
 
-include_once(__DIR__.'/vendor/autoload.php');
-
 class roundrive_files_engine
 {
     /**
@@ -959,6 +957,9 @@ class roundrive_files_engine
               'result' => array(),
               'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
       );
+
+      $forceRefresh = rcube_utils::get_input_value('force_refresh', rcube_utils::INPUT_GET);
+
       try {
         $filesPrefix = $this->plugin->gettext('files');
         $folders = $this->filesystem->listContents('/', true)
