@@ -29,12 +29,10 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
     var hasAttachments = rcmail.env.attachments && Object.keys(rcmail.env.attachments).length > 0;
 
     if (rcmail.task == 'mail') {
-    // mail compose
         if (rcmail.env.action == 'compose') {
             var elem = $('#compose-attachments > div');
             var input = $(`<button class="btn btn-secondary attach cloud" type="button">
-                <span class="cloud-icon"></span>
-                <span>${rcmail.gettext('roundrive.fromcloud')}</span>
+                ${rcmail.gettext('roundrive.fromcloud')}
             </button>`)
                     .attr('tabindex', $('button', elem).attr('tabindex') || 0)
                     .click(function () { roundrive_selector_dialog(); });
