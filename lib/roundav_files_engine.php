@@ -728,7 +728,8 @@ class roundav_files_engine
     {
         $this->plugin->add_texts('localization/');
 
-        $file = str_replace($this->plugin->gettext('files'), '/', urldecode(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET)));
+        $file = urldecode(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
+        $file = str_replace($this->plugin->gettext('files'), '/', $file);
 
         try {
           $this->file_data['type'] = $this->filesystem->mimeType($file);
@@ -809,12 +810,12 @@ class roundav_files_engine
 
             // send request to the API
             try {
-              if (!is_null($dest)) {
-                $dest = str_replace($this->plugin->gettext('files'), '/', $dest);
-              }
+                if (!is_null($dest)) {
+                    $dest = str_replace($this->plugin->gettext('files'), '/', $dest);
+                }
 
-              $this->filesystem->write($dest .  '/' . $attach_name, file_get_contents($path));
-              $files[] = $attach_name;
+                $this->filesystem->write($dest .  '/' . $attach_name, file_get_contents($path));
+                $files[] = $attach_name;
             }
             catch (Exception $e) {
                 unlink($path);
@@ -1082,8 +1083,17 @@ class roundav_files_engine
             'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
         );
         try {
-            $folder = str_replace($this->plugin->gettext('files'), '/', urldecode(rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST)));
-            $this->filesystem->createDirectory($folder);
+            $folder = urldecode(rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST));
+
+            // See https://github.com/thephpleague/flysystem/issues/1689
+            $this->filesystem->createDirectory(
+                str_replace($this->plugin->gettext('files'), '', $folder)
+            );
+
+            if (isset($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID])) {
+                $_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID][] = $folder;
+                sort($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID]);
+            }
         }
         catch (Exception $e) {
             $result['status'] = 'NOK';

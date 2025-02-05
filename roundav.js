@@ -1274,7 +1274,7 @@ function roundav_ui()
         this.display_message('roundav.foldercreatenotice', 'confirmation');
 
         // refresh folders list
-        this.folder_list(true);
+        this.folder_list();
     };
 
     // folder rename request
