@@ -142,15 +142,15 @@ class roundav_files_engine
     /**
      * Engine actions handler
      */
-    public function actions()
+    public function actions($rcTask, $rcAction)
     {
-        if ($this->rc->task == 'roundav' && $this->rc->action == 'file_api') {
+        if ($rcTask == 'roundav' && $rcAction == 'file_api') {
             $action = rcube_utils::get_input_value('method', rcube_utils::INPUT_GPC);
         }
-        else if ($this->rc->task == 'roundav' && $this->rc->action) {
-            $action = $this->rc->action;
+        else if ($rcTask == 'roundav' && $rcAction) {
+            $action = $rcAction;
         }
-        else if ($this->rc->task != 'roundav' && $_POST['act']) {
+        else if ($rcTask != 'roundav' && $_POST['act']) {
             $action = $_POST['act'];
         }
         else {

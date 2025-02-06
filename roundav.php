@@ -26,13 +26,14 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-include_once(__DIR__.'/vendor/autoload.php');
+require_once(__DIR__.'/vendor/autoload.php');
+require_once(__DIR__.'/lib/roundav_files_engine.php');
 
 class roundav extends rcube_plugin
 {
     public const SESSION_FOLDERS_LIST_ID = 'roundav_folders_list';
 
-    // all task excluding 'login' and 'logout'
+    // All tasks excluding 'login' and 'logout'
     public $task = '?(?!login|logout).*';
 
     public $rc;
@@ -43,35 +44,32 @@ class roundav extends rcube_plugin
     {
         $this->rc = rcube::get_instance();
 
+        // Do not edit the order of the lines below.
+        // Everything will break for some reason.
+
         $this->add_hook('refresh', array($this, 'refresh'));
-        $this->add_hook('startup', array($this, 'startup'));
-        $this->add_hook('logout', array($this, 'onlogout'));
+
+        $this->register_action('plugin.roundav', array($this, 'actions'));
 
         $this->register_task('roundav');
-
 
         $this->register_action('index', array($this, 'actions'));
         $this->register_action('prefs', array($this, 'actions'));
         $this->register_action('open',  array($this, 'actions'));
         $this->register_action('file_api', array($this, 'actions'));
 
-        $this->register_action('plugin.roundav', array($this, 'actions'));
+        $this->add_hook('startup', array($this, 'startup'));
+        $this->add_hook('logout', array($this, 'onlogout'));
     }
 
-    /**
-     * Creates roundav_engine instance
-     */
-    private function engine()
+    public function refresh($args = null)
     {
-        if ($this->engine === null) {
-            $this->load_config();
-
-            require_once $this->home . DIRECTORY_SEPARATOR . 'lib' . DIRECTORY_SEPARATOR . 'roundav_files_engine.php';
-
+        $this->load_config();
+        if (!$this->engine) {
             $this->engine = new roundav_files_engine($this);
         }
 
-        return $this->engine;
+        return $args;
     }
 
     /**
@@ -79,33 +77,13 @@ class roundav extends rcube_plugin
      */
     public function startup($args)
     {
-        // call this from startup to give a chance to set
-        $this->ui();
-    }
+        $this->refresh();
 
-    /**
-     * Adds elements of files API user interface
-     */
-    private function ui()
-    {
         if ($this->rc->output->type != 'html') {
             return;
         }
 
-        if ($engine = $this->engine()) {
-            $engine->ui();
-        }
-    }
-
-    /**
-     * Refresh hook handler
-     */
-    public function refresh($args)
-    {
-        // Here we are refreshing API session, so when we need it
-        // the session will be active
-        if ($engine = $this->engine()) {
-        }
+        $this->engine->ui();
 
         return $args;
     }
@@ -125,8 +103,10 @@ class roundav extends rcube_plugin
      */
     public function actions()
     {
-        if ($engine = $this->engine()) {
-            $engine->actions();
+        if ($this->engine)
+        {
+            $rc = rcube::get_instance();
+            $this->engine->actions($rc->task, $rc->action);
         }
     }
 
