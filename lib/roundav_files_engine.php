@@ -145,7 +145,7 @@ class roundav_files_engine
     public function actions()
     {
         if ($this->rc->task == 'roundav' && $this->rc->action == 'file_api') {
-          $action = rcube_utils::get_input_value('method', rcube_utils::INPUT_GPC);
+            $action = rcube_utils::get_input_value('method', rcube_utils::INPUT_GPC);
         }
         else if ($this->rc->task == 'roundav' && $this->rc->action) {
             $action = $this->rc->action;
@@ -157,11 +157,46 @@ class roundav_files_engine
             $action = 'index';
         }
 
-        $method = 'action_' . str_replace('-', '_', $action);
+        switch ($action)
+        {
+            case 'index':
+                $this->action_index();
+                break;
 
-        if (method_exists($this, $method)) {
-            $this->plugin->add_texts('localization/');
-            $this->{$method}();
+            case 'open';
+                $this->action_open();
+                break;
+
+            case 'save_file';
+                $this->action_save_file();
+                break;
+
+            case 'attach_file':
+                $this->action_attach_file();
+                break;
+
+            case 'folder_list':
+                $this->action_folder_list();
+                break;
+
+            case 'folder_create':
+                $this->action_folder_create();
+                break;
+
+            case 'file_list':
+                $this->action_file_list();
+                break;
+
+            case 'file_get':
+                $this->action_file_get();
+                break;
+
+            default:
+                echo(json_encode([
+                    'status' => 'NOK',
+                    'reason' => 'Unknown action',
+                    'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
+                ]));
         }
     }
 
@@ -367,10 +402,10 @@ class roundav_files_engine
         // add form tag around text field
         if (empty($attrib['form'])) {
             $out = $this->rc->output->form_tag(array(
-                    'action'   => '?_task=files',
-                    'name'     => "filesearchform",
-                    'onsubmit' => rcmail_output::JS_OBJECT_NAME . ".command('files-search'); return false",
-                ), $out);
+                'action'   => '?_task=files',
+                'name'     => "filesearchform",
+                'onsubmit' => rcmail_output::JS_OBJECT_NAME . ".command('files-search'); return false",
+            ), $out);
         }
 
         return $out;
@@ -622,8 +657,10 @@ class roundav_files_engine
     /**
      * Handler for main files interface (Files task)
      */
-    protected function action_index()
+    private function action_index()
     {
+        $this->plugin->add_texts('localization/');
+
         $this->plugin->add_label(
             'folderdeleting', 'folderdeleteconfirm', 'folderdeletenotice',
             'uploading', 'attaching', 'uploadsizeerror',
@@ -647,8 +684,10 @@ class roundav_files_engine
     /**
      * Handler for preferences save action
      */
-    protected function action_prefs()
+    private function action_prefs()
     {
+        $this->plugin->add_texts('localization/');
+
         $dont_override = (array)$this->rc->config->get('dont_override');
         $prefs = array();
         $opts  = array(
@@ -685,8 +724,10 @@ class roundav_files_engine
     /**
      * Handler for file open action
      */
-    protected function action_open()
+    private function action_open()
     {
+        $this->plugin->add_texts('localization/');
+
         $file = str_replace($this->plugin->gettext('files'), '/', urldecode(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET)));
 
         try {
@@ -723,8 +764,10 @@ class roundav_files_engine
     /**
      * Handler for "save all attachments into cloud" action
      */
-    protected function action_save_file()
+    private function action_save_file()
     {
+        $this->plugin->add_texts('localization/');
+
         $uid    = rcube_utils::get_input_value('uid', rcube_utils::INPUT_POST);
         $dest   = rcube_utils::get_input_value('dest', rcube_utils::INPUT_POST);
         $id     = rcube_utils::get_input_value('id', rcube_utils::INPUT_POST);
@@ -804,8 +847,10 @@ class roundav_files_engine
     /**
      * Handler for "add attachments from the cloud" action
      */
-    protected function action_attach_file()
+    private function action_attach_file()
     {
+        $this->plugin->add_texts('localization/');
+
         $files      = rcube_utils::get_input_value('files', rcube_utils::INPUT_POST);
         $uploadid   = rcube_utils::get_input_value('uploadid', rcube_utils::INPUT_POST);
         $COMPOSE_ID = rcube_utils::get_input_value('id', rcube_utils::INPUT_POST);
@@ -927,133 +972,143 @@ class roundav_files_engine
     /**
      * Handler for "folders list" function
      */
-    protected function action_folder_list() {
-      $result = array(
-        'status' => 'OK',
-        'result' => array(),
-        'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
-      );
+    private function action_folder_list()
+    {
+        $this->plugin->add_texts('localization/');
 
-      $folders = null;
-      $force_refresh = rcube_utils::get_input_value('force_refresh', rcube_utils::INPUT_GET) === "true";
+        $result = array(
+            'status' => 'OK',
+            'result' => array(),
+            'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
+        );
 
-      if (isset($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID])) {
-        if ($force_refresh) {
-            unset($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID]);
-        } else {
-            $folders = $_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID];
-        }
-      }
+        $folders = null;
+        $force_refresh = rcube_utils::get_input_value('force_refresh', rcube_utils::INPUT_GET) === "true";
 
-      try {
-        if (is_null($folders)) {
-            $filesPrefix = $this->plugin->gettext('files');
-            $folders = $this->filesystem->listContents('/', true)
-                ->filter(fn (StorageAttributes $attributes) => $attributes->isDir())
-                ->map(fn (StorageAttributes $attributes) => $filesPrefix .'/'.urldecode($attributes->path()))
-                ->toArray();
-
-            array_unshift($folders, $filesPrefix);
-
-            $_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID] = $folders;
+        if (isset($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID])) {
+            if ($force_refresh) {
+                unset($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID]);
+            } else {
+                $folders = $_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID];
+            }
         }
 
-        $result['result'] = $folders;
-      }
-      catch (Exception $e) {
-        $result['status'] = 'NOK';
-        $result['reason'] = "Can't list folders: “" . $e->getMessage() . "”";
-      }
-      echo json_encode($result);
-      exit;
+        try {
+            if (is_null($folders)) {
+                $filesPrefix = $this->plugin->gettext('files');
+                $folders = $this->filesystem->listContents('/', true)
+                    ->filter(fn (StorageAttributes $attributes) => $attributes->isDir())
+                    ->map(fn (StorageAttributes $attributes) => $filesPrefix .'/'.urldecode($attributes->path()))
+                    ->toArray();
+
+                array_unshift($folders, $filesPrefix);
+
+                $_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID] = $folders;
+            }
+
+            $result['result'] = $folders;
+        }
+        catch (Exception $e) {
+            $result['status'] = 'NOK';
+            $result['reason'] = "Can't list folders: “" . $e->getMessage() . "”";
+        }
+        echo json_encode($result);
+        exit();
     }
 
     /**
      * Handler for "file list" function
      */
-    protected function action_file_list() {
-      $result = array(
-              'status' => 'OK',
-              'result' => array(),
-              'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
-      );
-      $search = rcube_utils::get_input_value('search', rcube_utils::INPUT_GET);
-      if (!empty($search)) {
-        $search = is_array($search) ? strtolower($search['name'] ?? '') : strtolower($search);
-      }
+    private function action_file_list()
+    {
+        $this->plugin->add_texts('localization/');
 
-      try {
-        $filesPrefix = $this->plugin->gettext('files');
-        $folder = str_replace($filesPrefix, '/', rcube_utils::get_input_value('folder', rcube_utils::INPUT_GET));
-        $files = [];
-
-        $fsFiles = $this->filesystem->listContents($folder, false)
-            ->filter(fn (StorageAttributes $attributes) => $attributes->isFile());
-
-        foreach ($fsFiles as $fsfile) {
-            $basename = urldecode(basename($fsfile->path()));
-
-            if (!empty($search)) {
-              $name = strtolower($basename);
-
-              if (strpos($name, $search) === false) {
-                continue;
-              }
-            }
-
-            $key = urlencode($filesPrefix. '/'. urldecode($fsfile['path']));
-            $files[$key] = array(
-                'name' => $basename,
-                'type' => $fsfile['mimeType'],
-                'size' => $fsfile['fileSize'],
-                'mtime' => $fsfile['lastModified'],
-            );
+        $result = array(
+            'status' => 'OK',
+            'result' => array(),
+            'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
+        );
+        $search = rcube_utils::get_input_value('search', rcube_utils::INPUT_GET);
+        if (!empty($search)) {
+            $search = is_array($search) ? strtolower($search['name'] ?? '') : strtolower($search);
         }
-        $result['result'] = $files;
-      }
-      catch (Exception $e) {
-        $result['status'] = 'NOK';
-        $result['reason'] = "Can't list files: “" . $e->getMessage() . "”";
-      }
-      echo json_encode($result);
-      exit;
+
+        try {
+            $filesPrefix = $this->plugin->gettext('files');
+            $folder = str_replace($filesPrefix, '/', rcube_utils::get_input_value('folder', rcube_utils::INPUT_GET));
+            $files = [];
+
+            $fsFiles = $this->filesystem->listContents($folder, false)
+                ->filter(fn (StorageAttributes $attributes) => $attributes->isFile());
+
+            foreach ($fsFiles as $fsfile) {
+                $basename = urldecode(basename($fsfile->path()));
+
+                if (!empty($search)) {
+                $name = strtolower($basename);
+
+                if (strpos($name, $search) === false) {
+                    continue;
+                }
+                }
+
+                $key = urlencode($filesPrefix. '/'. urldecode($fsfile['path']));
+                $files[$key] = array(
+                    'name' => $basename,
+                    'type' => $fsfile['mimeType'],
+                    'size' => $fsfile['fileSize'],
+                    'mtime' => $fsfile['lastModified'],
+                );
+            }
+            $result['result'] = $files;
+        }
+        catch (Exception $e) {
+            $result['status'] = 'NOK';
+            $result['reason'] = "Can't list files: “" . $e->getMessage() . "”";
+        }
+        echo json_encode($result);
+        exit();
     }
 
     /**
      * Handler for "folder create" function
      */
-    protected function action_folder_create() {
-      $result = array(
-              'status' => 'OK',
-              'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
-      );
-      try {
-        $folder = str_replace($this->plugin->gettext('files'), '/', urldecode(rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST)));
-        $this->filesystem->createDirectory($folder);
-      }
-      catch (Exception $e) {
-        $result['status'] = 'NOK';
-        $result['reason'] = "Can't create folder: “" . $e->getMessage() . "”";
-      }
-      echo json_encode($result);
-      exit;
+    private function action_folder_create()
+    {
+        $this->plugin->add_texts('localization/');
+
+        $result = array(
+            'status' => 'OK',
+            'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
+        );
+        try {
+            $folder = str_replace($this->plugin->gettext('files'), '/', urldecode(rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST)));
+            $this->filesystem->createDirectory($folder);
+        }
+        catch (Exception $e) {
+            $result['status'] = 'NOK';
+            $result['reason'] = "Can't create folder: “" . $e->getMessage() . "”";
+        }
+        echo json_encode($result);
+        exit();
     }
 
     /**
      * Handler for "file get" function
      */
-    protected function action_file_get() {
-      try {
-        $file = str_replace($this->plugin->gettext('files'), '/', rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
+    private function action_file_get()
+    {
+        try {
+            $file = str_replace($this->plugin->gettext('files'), '/', rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
 
-        header('Content-Type: ' . $this->filesystem->mimeType($file));
-        header('Content-disposition: attachment; filename=' . $this->get_filename_from_path(urldecode($file)));
-        header('Content-Length: ' . $this->filesystem->fileSize($file));
-        echo $this->filesystem->read($file);
-      }
-      catch (Exception $e) {
-      }
-  		exit;
+            header('Content-Type: ' . $this->filesystem->mimeType($file));
+            header('Content-disposition: attachment; filename=' . $this->get_filename_from_path(urldecode($file)));
+            header('Content-Length: ' . $this->filesystem->fileSize($file));
+            echo $this->filesystem->read($file);
+        }
+        catch (Exception $e) {}
+
+        exit();
     }
 
     /**
@@ -1069,12 +1124,13 @@ class roundav_files_engine
      * @param string $path
      * @return string
      */
-    protected function get_filename_from_path($path) {
-      $filename = $path;
-      $tmp = explode('/', $path);
-      if (is_array($tmp) && count($tmp) > 0) {
-        $filename = end($tmp);
-      }
-      return $filename;
+    protected function get_filename_from_path($path)
+    {
+        $filename = $path;
+        $tmp = explode('/', $path);
+        if (is_array($tmp) && count($tmp) > 0) {
+            $filename = end($tmp);
+        }
+        return $filename;
     }
 }

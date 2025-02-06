@@ -161,12 +161,12 @@ function roundav_init()
 // folder selection dialog
 function roundav_directory_selector_dialog(id)
 {
-    var dialog = $('#files-dialog'),
-        input = $('#file-save-as-input'),
-        form = $('#file-save-as'),
-        list = $('#folderlistbox'),
-        buttons = {}, label = 'saveto',
-        win = window, fn;
+    var dialog = $('#files-dialog');
+    var input = $('#file-save-as-input');
+    var form = $('#file-save-as');
+    var buttons = {};
+    var label = 'saveto';
+    var fn;
 
     // attachment is specified
     if (id) {
@@ -199,13 +199,13 @@ function roundav_directory_selector_dialog(id)
     $('#foldercreatelink').attr('tabindex', 0);
 
     buttons[rcmail.gettext('roundav.save')] = function () {
-        var lock = rcmail.set_busy(true, 'saving'),
-            request = {
-                act: 'save-file',
-                source: rcmail.env.mailbox,
-                uid: rcmail.env.uid,
-                dest: file_api.env.folder,
-            };
+        var lock = rcmail.set_busy(true, 'saving');
+        var request = {
+            act: 'save_file',
+            source: rcmail.env.mailbox,
+            uid: rcmail.env.uid,
+            dest: file_api.env.folder,
+        };
 
         if (id) {
             request.id = id;
@@ -243,14 +243,14 @@ function roundav_directory_selector_dialog(id)
         if (!parent.rcmail.folder_create) {
             parent.rcmail.enable_command('folder-create', true);
             parent.rcmail.folder_create = function () {
-                win.roundav_folder_create_dialog();
+                window.roundav_folder_create_dialog();
             };
         }
 
         if (!parent.rcmail.folder_force_reload) {
             parent.rcmail.enable_command('folder-force-reload', true);
             parent.rcmail.folder_force_reload = function () {
-                win.roundav_folder_force_reload();
+                window.roundav_folder_force_reload();
             };
         }
     }
@@ -270,17 +270,19 @@ function roundav_selector_dialog()
         roundav_dialog_close(this);
 
         if (list.length) {
-            // display upload indicator and cancel button
-            var content = '<span>' + rcmail.get_label('roundav.attaching') + '</span>',
-                id = new Date().getTime();
+            // Display upload indicator and cancel button
+            var id = Date.now();
 
             rcmail.add2attachment_list(id, {
-                name: '', html: content, classname: 'uploading', complete: false,
+                name: '',
+                html: `<span>${rcmail.get_label('roundav.attaching')}</span>`,
+                classname: 'uploading',
+                complete: false,
             });
 
             // send request
             rcmail.http_post('plugin.roundav', {
-                act: 'attach-file',
+                act: 'attach_file',
                 files: list,
                 id: rcmail.env.compose_id,
                 uploadid: id,

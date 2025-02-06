@@ -71,7 +71,6 @@ function files_api()
     // send a http POST request to the API service
     this.post = function (action, data, func)
     {
-    // alert('post : ' + action + " / func : " + func);
         if (!func) { func = 'response'; }
 
         this.set_request_time();
