@@ -10,10 +10,6 @@ class roundav_files_engine
      * @var roundav
      */
     private $plugin;
-    /**
-     * @var rcmail
-     */
-    private $rc;
 
     private $sort_cols = array('name', 'mtime', 'size');
 
@@ -34,37 +30,36 @@ class roundav_files_engine
     public function __construct($plugin)
     {
         $this->plugin  = $plugin;
-        $this->rc      = $plugin->rc;
 
         $settings = array(
-            'baseUri' => $this->rc->config->get('driver_webdav_url'),
-            'userName' => $this->rc->config->get('driver_webdav_username') ?? $this->rc->user->get_username(),
-            'password' => $this->rc->config->get('driver_webdav_password') ?? $this->rc->get_user_password(),
+            'baseUri' => $plugin->rc->config->get('driver_webdav_url'),
+            'userName' => $plugin->rc->config->get('driver_webdav_username') ?? $plugin->rc->user->get_username(),
+            'password' => $plugin->rc->config->get('driver_webdav_password') ?? $plugin->rc->get_user_password(),
         );
 
         $client = new Client($settings);
-        $adapter = new WebDAVAdapter($client, $this->rc->config->get('driver_webdav_prefix'));
+        $adapter = new WebDAVAdapter($client, $plugin->rc->config->get('driver_webdav_prefix'));
         $this->filesystem = new Filesystem($adapter);
     }
 
     /**
      * User interface initialization
      */
-    public function ui()
+    public function ui($plugin)
     {
-        $this->plugin->add_texts('localization/');
+        $plugin->add_texts('localization/');
 
         // set templates of Files UI and widgets
-        if ($this->rc->task == 'mail') {
-            if ($this->rc->action == 'compose') {
+        if ($plugin->rc->task == 'mail') {
+            if ($plugin->rc->action == 'compose') {
                 $template = 'compose_plugin';
             }
-            else if (in_array($this->rc->action, array('show', 'preview', 'get'))) {
+            else if (in_array($plugin->rc->action, array('show', 'preview', 'get'))) {
                 $template = 'message_plugin';
 
-                if ($this->rc->action == 'get') {
+                if ($plugin->rc->action == 'get') {
                     // add "Save as" button into attachment toolbar
-                    $this->plugin->add_button(array(
+                    $plugin->add_button(array(
                         'id'         => 'saveas',
                         'name'       => 'saveas',
                         'type'       => 'link',
@@ -77,7 +72,7 @@ class roundav_files_engine
                 }
                 else {
                     // add "Save as" button into attachment menu
-                    $this->plugin->add_button(array(
+                    $plugin->add_button(array(
                         'id'         => 'attachmenusaveas',
                         'name'       => 'attachmenusaveas',
                         'type'       => 'link',
@@ -91,20 +86,20 @@ class roundav_files_engine
                 }
             }
 
-            $this->plugin->add_label('save', 'cancel', 'saveto',
+            $plugin->add_label('save', 'cancel', 'saveto',
                 'saveall', 'fromcloud', 'attachsel', 'selectfiles', 'attaching',
                 'collection_audio', 'collection_video', 'collection_image', 'collection_document',
                 'folderauthtitle', 'authenticating',
                 'refreshfolderslist'
             );
         }
-        else if ($this->rc->task == 'roundav' && $this->rc->config->get('show_drive_task', true)) {
+        else if ($plugin->rc->task == 'roundav' && $plugin->rc->config->get('show_drive_task', true)) {
             $template = 'files';
         }
 
         // add taskbar button
-        if (empty($_REQUEST['framed']) && $this->rc->config->get('show_drive_task', true)) {
-            $this->plugin->add_button(array(
+        if (empty($_REQUEST['framed']) && $plugin->rc->config->get('show_drive_task', true)) {
+            $plugin->add_button(array(
                 'command'    => 'roundav',
                 'class'      => 'button-files',
                 'classsel'   => 'button-files button-selected',
@@ -113,14 +108,14 @@ class roundav_files_engine
                 ), 'taskbar');
         }
 
-        $this->plugin->include_stylesheet($this->plugin->local_skin_path().'/style.css');
+        $plugin->include_stylesheet($plugin->local_skin_path().'/style.css');
 
         if (!empty($template)) {
-            $this->plugin->include_script('file_api.js');
-            $this->plugin->include_script('roundav.js');
+            $plugin->include_script('file_api.js');
+            $plugin->include_script('roundav.js');
 
             // register template objects for dialogs (and main interface)
-            $this->rc->output->add_handlers(array(
+            $plugin->rc->output->add_handlers(array(
                 'folder-create-form' => array($this, 'folder_create_form'),
                 'folder-edit-form'   => array($this, 'folder_edit_form'),
                 'folder-mount-form'  => array($this, 'folder_mount_form'),
@@ -131,72 +126,11 @@ class roundav_files_engine
                 'filequotadisplay'   => array($this, 'quota_display'),
             ));
 
-            if ($this->rc->task != 'roundav') {
+            if ($plugin->rc->task != 'roundav') {
                 // add dialog content at the end of page body
-                $this->rc->output->add_footer(
-                    $this->rc->output->parse('roundav.' . $template, false, false));
+                $plugin->rc->output->add_footer(
+                    $plugin->rc->output->parse('roundav.' . $template, false, false));
             }
-        }
-    }
-
-    /**
-     * Engine actions handler
-     */
-    public function actions($rcTask, $rcAction)
-    {
-        if ($rcTask == 'roundav' && $rcAction == 'file_api') {
-            $action = rcube_utils::get_input_value('method', rcube_utils::INPUT_GPC);
-        }
-        else if ($rcTask == 'roundav' && $rcAction) {
-            $action = $rcAction;
-        }
-        else if ($rcTask != 'roundav' && $_POST['act']) {
-            $action = $_POST['act'];
-        }
-        else {
-            $action = 'index';
-        }
-
-        switch ($action)
-        {
-            case 'index':
-                $this->action_index();
-                break;
-
-            case 'open';
-                $this->action_open();
-                break;
-
-            case 'save_file';
-                $this->action_save_file();
-                break;
-
-            case 'attach_file':
-                $this->action_attach_file();
-                break;
-
-            case 'folder_list':
-                $this->action_folder_list();
-                break;
-
-            case 'folder_create':
-                $this->action_folder_create();
-                break;
-
-            case 'file_list':
-                $this->action_file_list();
-                break;
-
-            case 'file_get':
-                $this->action_file_get();
-                break;
-
-            default:
-                echo(json_encode([
-                    'status' => 'NOK',
-                    'reason' => 'Unknown action',
-                    'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
-                ]));
         }
     }
 
@@ -223,11 +157,11 @@ class roundav_files_engine
 
         // add form tag around text field
         if (empty($attrib['form'])) {
-            $out = $this->rc->output->form_tag($attrib, $out);
+            $out = $this->plugin->rc->output->form_tag($attrib, $out);
         }
 
         $this->plugin->add_label('foldercreating', 'foldercreatenotice', 'create', 'foldercreate', 'cancel');
-        $this->rc->output->add_gui_object('folder-create-form', $attrib['id']);
+        $this->plugin->rc->output->add_gui_object('folder-create-form', $attrib['id']);
 
         return $out;
     }
@@ -255,11 +189,11 @@ class roundav_files_engine
 
         // add form tag around text field
         if (empty($attrib['form'])) {
-            $out = $this->rc->output->form_tag($attrib, $out);
+            $out = $this->plugin->rc->output->form_tag($attrib, $out);
         }
 
         $this->plugin->add_label('folderupdating', 'folderupdatenotice', 'save', 'folderedit', 'cancel');
-        $this->rc->output->add_gui_object('folder-edit-form', $attrib['id']);
+        $this->plugin->rc->output->add_gui_object('folder-edit-form', $attrib['id']);
 
         return $out;
     }
@@ -269,7 +203,7 @@ class roundav_files_engine
      */
     public function folder_mount_form($attrib)
     {
-        $sources = $this->rc->output->get_env('external_sources');
+        $sources = $this->plugin->rc->output->get_env('external_sources');
 
         if (empty($sources) || !is_array($sources)) {
             return '';
@@ -319,13 +253,13 @@ class roundav_files_engine
 
         // add form tag around text field
         if (empty($attrib['form'])) {
-            $out = $this->rc->output->form_tag($attrib, $out);
+            $out = $this->plugin->rc->output->form_tag($attrib, $out);
         }
 
         $this->plugin->add_label('foldermounting', 'foldermountnotice', 'foldermount',
             'save', 'cancel', 'folderauthtitle', 'authenticating'
         );
-        $this->rc->output->add_gui_object('folder-mount-form', $attrib['id']);
+        $this->plugin->rc->output->add_gui_object('folder-mount-form', $attrib['id']);
 
         return $out;
     }
@@ -368,11 +302,11 @@ class roundav_files_engine
 
         // add form tag around text field
         if (empty($attrib['form'])) {
-            $out = $this->rc->output->form_tag($attrib, $out);
+            $out = $this->plugin->rc->output->form_tag($attrib, $out);
         }
 
         $this->plugin->add_label('save', 'cancel', 'fileupdating', 'fileedit');
-        $this->rc->output->add_gui_object('file-edit-form', $attrib['id']);
+        $this->plugin->rc->output->add_gui_object('file-edit-form', $attrib['id']);
 
         return $out;
     }
@@ -388,7 +322,7 @@ class roundav_files_engine
         if (empty($attrib['id'])) {
             $attrib['id'] = 'filesearchbox';
         }
-        if (isset($attrib['type']) && $attrib['type'] == 'search' && !$this->rc->output->browser->khtml) {
+        if (isset($attrib['type']) && $attrib['type'] == 'search' && !$this->plugin->rc->output->browser->khtml) {
             unset($attrib['type'], $attrib['results']);
         }
 
@@ -397,11 +331,11 @@ class roundav_files_engine
 
         // add some labels to client
         $this->plugin->add_label('searching');
-        $this->rc->output->add_gui_object('filesearchbox', $attrib['id']);
+        $this->plugin->rc->output->add_gui_object('filesearchbox', $attrib['id']);
 
         // add form tag around text field
         if (empty($attrib['form'])) {
-            $out = $this->rc->output->form_tag(array(
+            $out = $this->plugin->rc->output->form_tag(array(
                 'action'   => '?_task=files',
                 'name'     => "filesearchform",
                 'onsubmit' => rcmail_output::JS_OBJECT_NAME . ".command('files-search'); return false",
@@ -418,10 +352,10 @@ class roundav_files_engine
     {
         // define list of cols to be displayed based on parameter or config
         if (empty($attrib['columns'])) {
-            $list_cols     = $this->rc->config->get('roundav_list_cols');
-            $dont_override = $this->rc->config->get('dont_override');
+            $list_cols     = $this->plugin->rc->config->get('roundav_list_cols');
+            $dont_override = $this->plugin->rc->config->get('dont_override');
             $a_show_cols = is_array($list_cols) ? $list_cols : array('name');
-            $this->rc->output->set_env('col_movable', !in_array('roundav_list_cols', (array)$dont_override));
+            $this->plugin->rc->output->set_env('col_movable', !in_array('roundav_list_cols', (array)$dont_override));
         }
         else {
             $a_show_cols = preg_split('/[\s,;]+/', strip_quotes($attrib['columns']));
@@ -441,24 +375,24 @@ class roundav_files_engine
         $_SESSION['roundav_list_attrib'] = $attrib;
 
         // For list in dialog(s) remove all option-like columns
-        if ($this->rc->task != 'roundav') {
+        if ($this->plugin->rc->task != 'roundav') {
             $a_show_cols = array_intersect($a_show_cols, $this->sort_cols);
         }
 
         // set default sort col/order to session
         if (!isset($_SESSION['roundav_sort_col']))
-            $_SESSION['roundav_sort_col'] = $this->rc->config->get('roundav_sort_col') ?: 'name';
+            $_SESSION['roundav_sort_col'] = $this->plugin->rc->config->get('roundav_sort_col') ?: 'name';
         if (!isset($_SESSION['roundav_sort_order']))
-            $_SESSION['roundav_sort_order'] = strtoupper($this->rc->config->get('roundav_sort_order') ?: 'asc');
+            $_SESSION['roundav_sort_order'] = strtoupper($this->plugin->rc->config->get('roundav_sort_order') ?: 'asc');
 
         // set client env
-        $this->rc->output->add_gui_object('filelist', $attrib['id']);
-        $this->rc->output->set_env('sort_col', $_SESSION['roundav_sort_col']);
-        $this->rc->output->set_env('sort_order', $_SESSION['roundav_sort_order']);
-        $this->rc->output->set_env('coltypes', $a_show_cols);
-        $this->rc->output->set_env('search_threads', $this->rc->config->get('roundav_search_threads'));
+        $this->plugin->rc->output->add_gui_object('filelist', $attrib['id']);
+        $this->plugin->rc->output->set_env('sort_col', $_SESSION['roundav_sort_col']);
+        $this->plugin->rc->output->set_env('sort_order', $_SESSION['roundav_sort_order']);
+        $this->plugin->rc->output->set_env('coltypes', $a_show_cols);
+        $this->plugin->rc->output->set_env('search_threads', $this->plugin->rc->config->get('roundav_search_threads'));
 
-        $this->rc->output->include_script('list.js');
+        $this->plugin->rc->output->include_script('list.js');
 
         // attach css rules for mimetype icons
         $this->plugin->include_stylesheet($this->plugin->local_skin_path() . '/mimetypes/style.css');
@@ -484,12 +418,12 @@ class roundav_files_engine
         $sort_col   = $_SESSION['roundav_sort_col'];
         $sort_order = $_SESSION['roundav_sort_order'];
 
-        $dont_override  = (array)$this->rc->config->get('dont_override');
+        $dont_override  = (array)$this->plugin->rc->config->get('dont_override');
         $disabled_sort  = in_array('message_sort_col', $dont_override);
         $disabled_order = in_array('message_sort_order', $dont_override);
 
-        $this->rc->output->set_env('disabled_sort_col', $disabled_sort);
-        $this->rc->output->set_env('disabled_sort_order', $disabled_order);
+        $this->plugin->rc->output->set_env('disabled_sort_col', $disabled_sort);
+        $this->plugin->rc->output->set_env('disabled_sort_order', $disabled_order);
 
         // define sortable columns
         if ($disabled_sort)
@@ -499,10 +433,10 @@ class roundav_files_engine
 
         if (!empty($attrib['optionsmenuicon'])) {
             $onclick = 'return ' . rcmail_output::JS_OBJECT_NAME . ".command('menu-open', 'filelistmenu', this, event)";
-            $inner   = $this->rc->gettext('listoptions');
+            $inner   = $this->plugin->rc->gettext('listoptions');
 
             if (is_string($attrib['optionsmenuicon']) && $attrib['optionsmenuicon'] != 'true') {
-                $inner = html::img(array('src' => $skin_path . $attrib['optionsmenuicon'], 'alt' => $this->rc->gettext('listoptions')));
+                $inner = html::img(array('src' => $skin_path . $attrib['optionsmenuicon'], 'alt' => $this->plugin->rc->gettext('listoptions')));
             }
 
             $list_menu = html::a(array(
@@ -510,7 +444,7 @@ class roundav_files_engine
                 'onclick'  => $onclick,
                 'class'    => 'listmenu',
                 'id'       => 'listmenulink',
-                'title'    => $this->rc->gettext('listoptions'),
+                'title'    => $this->plugin->rc->gettext('listoptions'),
                 'tabindex' => '0',
             ), $inner);
         }
@@ -572,8 +506,8 @@ class roundav_files_engine
 
         $head = html::tag('tr', null, $head);
 
-        $this->rc->output->set_env('coltypes', $a_show_cols);
-        $this->rc->output->command('files_list_update', $head);
+        $this->plugin->rc->output->set_env('coltypes', $a_show_cols);
+        $this->plugin->rc->output->command('files_list_update', $head);
     }
 
     /**
@@ -594,7 +528,7 @@ class roundav_files_engine
 
         // file size
         $table->add('label', $this->plugin->gettext('size').':');
-        $table->add('data filesize', $this->rc->show_bytes($this->file_data['size']));
+        $table->add('data filesize', $this->plugin->rc->show_bytes($this->file_data['size']));
 
         // file modification time
         $table->add('label', $this->plugin->gettext('mtime').':');
@@ -619,9 +553,9 @@ class roundav_files_engine
             return $frame;
         }
 
-        $href = $this->rc->url(array('task' => 'roundav', 'action' => 'file_api')) . '&method=file_get&file='. urlencode($this->file_data['filename']);
+        $href = $this->plugin->rc->url(array('task' => 'roundav', 'action' => 'file_api')) . '&method=file_get&file='. urlencode($this->file_data['filename']);
 
-        $this->rc->output->add_gui_object('preview_frame', $attrib['id']);
+        $this->plugin->rc->output->add_gui_object('preview_frame', $attrib['id']);
 
         $attrib['allowfullscreen'] = true;
         $attrib['src']             = $href;
@@ -641,15 +575,15 @@ class roundav_files_engine
 
         $quota_type = !empty($attrib['display']) ? $attrib['display'] : 'text';
 
-        $this->rc->output->add_gui_object('quotadisplay', $attrib['id']);
-        $this->rc->output->set_env('quota_type', $quota_type);
+        $this->plugin->rc->output->add_gui_object('quotadisplay', $attrib['id']);
+        $this->plugin->rc->output->set_env('quota_type', $quota_type);
 
         // get quota
         $quota = array("used" => 0, "total" => 1024);
 
         $quota = rcube_output::json_serialize($quota);
 
-        $this->rc->output->add_script(rcmail_output::JS_OBJECT_NAME . ".files_set_quota($quota);", 'docready');
+        $this->plugin->rc->output->add_script(rcmail_output::JS_OBJECT_NAME . ".files_set_quota($quota);", 'docready');
 
         return html::span($attrib, '');
     }
@@ -657,11 +591,11 @@ class roundav_files_engine
     /**
      * Handler for main files interface (Files task)
      */
-    private function action_index()
+    public function action_index($plugin)
     {
-        $this->plugin->add_texts('localization/');
+        $plugin->add_texts('localization/');
 
-        $this->plugin->add_label(
+        $plugin->add_label(
             'folderdeleting', 'folderdeleteconfirm', 'folderdeletenotice',
             'uploading', 'attaching', 'uploadsizeerror',
             'filedeleting', 'filedeletenotice', 'filedeleteconfirm',
@@ -671,24 +605,24 @@ class roundav_files_engine
             'refreshfolderslist'
         );
 
-        $this->plugin->add_label('uploadprogress', 'GB', 'MB', 'KB', 'B');
-        $this->rc->output->set_pagetitle($this->plugin->gettext('files'));
-        $this->rc->output->set_env('file_mimetypes', $this->get_mimetypes());
-        $this->rc->output->set_env('files_quota', $_SESSION['roundav_caps']['QUOTA']);
-        $this->rc->output->set_env('files_max_upload', $_SESSION['roundav_caps']['MAX_UPLOAD']);
-        $this->rc->output->set_env('files_progress_name', $_SESSION['roundav_caps']['PROGRESS_NAME']);
-        $this->rc->output->set_env('files_progress_time', $_SESSION['roundav_caps']['PROGRESS_TIME']);
-        $this->rc->output->send('roundav.files');
+        $plugin->add_label('uploadprogress', 'GB', 'MB', 'KB', 'B');
+        $plugin->rc->output->set_pagetitle($plugin->gettext('files'));
+        $plugin->rc->output->set_env('file_mimetypes', $this->get_mimetypes());
+        $plugin->rc->output->set_env('files_quota', $_SESSION['roundav_caps']['QUOTA']);
+        $plugin->rc->output->set_env('files_max_upload', $_SESSION['roundav_caps']['MAX_UPLOAD']);
+        $plugin->rc->output->set_env('files_progress_name', $_SESSION['roundav_caps']['PROGRESS_NAME']);
+        $plugin->rc->output->set_env('files_progress_time', $_SESSION['roundav_caps']['PROGRESS_TIME']);
+        $plugin->rc->output->send('roundav.files');
     }
 
     /**
      * Handler for preferences save action
      */
-    private function action_prefs()
+    public function action_prefs($plugin)
     {
-        $this->plugin->add_texts('localization/');
+        $plugin->add_texts('localization/');
 
-        $dont_override = (array)$this->rc->config->get('dont_override');
+        $dont_override = (array) $plugin->rc->config->get('dont_override');
         $prefs = array();
         $opts  = array(
             'roundav_sort_col' => true,
@@ -711,25 +645,25 @@ class roundav_files_engine
 
         // save preference values
         if (!empty($prefs)) {
-            $this->rc->user->save_prefs($prefs);
+            $plugin->rc->user->save_prefs($prefs);
         }
 
         if (!empty($update_list)) {
             $this->file_list_update($prefs);
         }
 
-        $this->rc->output->send();
+        $plugin->rc->output->send();
     }
 
     /**
      * Handler for file open action
      */
-    private function action_open()
+    public function action_open($plugin)
     {
-        $this->plugin->add_texts('localization/');
+        $plugin->add_texts('localization/');
 
         $file = urldecode(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
-        $file = str_replace($this->plugin->gettext('files'), '/', $file);
+        $file = str_replace($plugin->gettext('files'), '/', $file);
 
         try {
           $this->file_data['type'] = $this->filesystem->mimeType($file);
@@ -746,35 +680,35 @@ class roundav_files_engine
 
         $this->file_data['filename'] = urldecode(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
 
-        $this->plugin->add_label('filedeleteconfirm', 'filedeleting', 'filedeletenotice');
+        $plugin->add_label('filedeleteconfirm', 'filedeleting', 'filedeletenotice');
 
         // register template objects for dialogs (and main interface)
-        $this->rc->output->add_handlers(array(
+        $plugin->rc->output->add_handlers(array(
             'fileinfobox'      => array($this, 'file_info_box'),
             'filepreviewframe' => array($this, 'file_preview_frame'),
         ));
 
         // this one is for styling purpose
-        $this->rc->output->set_env('extwin', true);
-        $this->rc->output->set_env('file', $file);
-        $this->rc->output->set_env('file_data', $this->file_data);
-        $this->rc->output->set_pagetitle(rcube::Q($file));
-        $this->rc->output->send('roundav.filepreview');
+        $plugin->rc->output->set_env('extwin', true);
+        $plugin->rc->output->set_env('file', $file);
+        $plugin->rc->output->set_env('file_data', $this->file_data);
+        $plugin->rc->output->set_pagetitle(rcube::Q($file));
+        $plugin->rc->output->send('roundav.filepreview');
     }
 
     /**
      * Handler for "save all attachments into cloud" action
      */
-    private function action_save_file()
+    public function action_save_file($plugin)
     {
-        $this->plugin->add_texts('localization/');
+        $plugin->add_texts('localization/');
 
         $uid    = rcube_utils::get_input_value('uid', rcube_utils::INPUT_POST);
         $dest   = rcube_utils::get_input_value('dest', rcube_utils::INPUT_POST);
         $id     = rcube_utils::get_input_value('id', rcube_utils::INPUT_POST);
         $name   = rcube_utils::get_input_value('name', rcube_utils::INPUT_POST);
 
-        $temp_dir = unslashify($this->rc->config->get('temp_dir'));
+        $temp_dir = unslashify($plugin->rc->config->get('temp_dir'));
         $message  = new rcube_message($uid);
         $files    = array();
         $errors   = array();
@@ -782,7 +716,7 @@ class roundav_files_engine
 
         foreach ($message->attachments as $attach_prop) {
             if (empty($id) || $id == $attach_prop->mime_id) {
-                $filename = !is_null($name) && strlen($name) ? $name : $this->plugin->get_attachment_name($attach_prop, true);
+                $filename = !is_null($name) && strlen($name) ? $name : $plugin->get_attachment_name($attach_prop, true);
                 $attachments[$filename] = $attach_prop;
             }
         }
@@ -811,7 +745,7 @@ class roundav_files_engine
             // send request to the API
             try {
                 if (!is_null($dest)) {
-                    $dest = str_replace($this->plugin->gettext('files'), '/', $dest);
+                    $dest = str_replace($plugin->gettext('files'), '/', $dest);
                 }
 
                 $this->filesystem->write($dest .  '/' . $attach_name, file_get_contents($path));
@@ -832,25 +766,25 @@ class roundav_files_engine
         }
 
         if ($count = count($files)) {
-            $msg = $this->plugin->gettext(array('name' => 'saveallnotice', 'vars' => array('n' => $count)));
-            $this->rc->output->show_message($msg, 'confirmation');
+            $msg = $plugin->gettext(array('name' => 'saveallnotice', 'vars' => array('n' => $count)));
+            $plugin->rc->output->show_message($msg, 'confirmation');
         }
         if ($count = count($errors)) {
-            $msg = $this->plugin->gettext(array('name' => 'saveallerror', 'vars' => array('n' => $count)));
-            $this->rc->output->show_message($msg, 'error');
+            $msg = $plugin->gettext(array('name' => 'saveallerror', 'vars' => array('n' => $count)));
+            $plugin->rc->output->show_message($msg, 'error');
         }
 
         // @TODO: update quota indicator, make this optional in case files aren't stored in IMAP
 
-        $this->rc->output->send();
+        $plugin->rc->output->send();
     }
 
     /**
      * Handler for "add attachments from the cloud" action
      */
-    private function action_attach_file()
+    public function action_attach_file($plugin)
     {
-        $this->plugin->add_texts('localization/');
+        $plugin->add_texts('localization/');
 
         $files      = rcube_utils::get_input_value('files', rcube_utils::INPUT_POST);
         $uploadid   = rcube_utils::get_input_value('uploadid', rcube_utils::INPUT_POST);
@@ -872,15 +806,15 @@ class roundav_files_engine
         }
 
         // clear all stored output properties (like scripts and env vars)
-        $this->rc->output->reset();
+        $plugin->rc->output->reset();
 
-        $temp_dir = unslashify($this->rc->config->get('temp_dir'));
+        $temp_dir = unslashify($plugin->rc->config->get('temp_dir'));
 
         // download files from the API and attach them
         foreach ($files as $file) {
             // decode filename
             $file = urldecode($file);
-            $file = str_replace($this->plugin->gettext('files'), '/', $file);
+            $file = str_replace($plugin->gettext('files'), '/', $file);
 
             // set location of downloaded file
             $path = tempnam($temp_dir, 'rcmAttmnt');
@@ -917,7 +851,7 @@ class roundav_files_engine
                 'group' => $COMPOSE_ID,
             );
 
-            $attachment = $this->rc->plugins->exec_hook('attachment_save', $attachment);
+            $attachment = $plugin->rc->plugins->exec_hook('attachment_save', $attachment);
 
             if ($attachment['status'] && !$attachment['abort']) {
                 $id = $attachment['id'];
@@ -929,23 +863,23 @@ class roundav_files_engine
                 if (($icon = $COMPOSE['deleteicon']) && is_file($icon)) {
                     $button = html::img(array(
                         'src' => $icon,
-                        'alt' => $this->rc->gettext('delete')
+                        'alt' => $plugin->rc->gettext('delete')
                     ));
                 }
                 else {
-                    $button = rcube::Q($this->rc->gettext('delete'));
+                    $button = rcube::Q($plugin->rc->gettext('delete'));
                 }
 
                 $content = html::a(array(
                     'href' => "#delete",
                     'onclick' => sprintf("return %s.command('remove-attachment','rcmfile%s', this)", rcmail_output::JS_OBJECT_NAME, $id),
-                    'title' => $this->rc->gettext('delete'),
+                    'title' => $plugin->rc->gettext('delete'),
                     'class' => 'delete',
                 ), $button);
 
                 $content .= rcube::Q($attachment['name']);
 
-                $this->rc->output->command('add2attachment_list', "rcmfile$id", array(
+                $plugin->rc->output->command('add2attachment_list', "rcmfile$id", array(
                     'html'      => $content,
                     'name'      => $attachment['name'],
                     'mimetype'  => $attachment['mimetype'],
@@ -956,26 +890,26 @@ class roundav_files_engine
                 $errors[] = $attachment['error'];
             }
             else {
-                $errors[] = $this->plugin->gettext('attacherror');
+                $errors[] = $plugin->gettext('attacherror');
             }
         }
 
         if (!empty($errors)) {
-            $this->rc->output->command('display_message', $this->plugin->gettext('attacherror'), 'error');
-            $this->rc->output->command('remove_from_attachment_list', $uploadid);
+            $plugin->rc->output->command('display_message', $plugin->gettext('attacherror'), 'error');
+            $plugin->rc->output->command('remove_from_attachment_list', $uploadid);
         }
 
         // send html page with JS calls as response
-        $this->rc->output->command('auto_save_start', false);
-        $this->rc->output->send();
+        $plugin->rc->output->command('auto_save_start', false);
+        $plugin->rc->output->send();
     }
 
     /**
      * Handler for "folders list" function
      */
-    private function action_folder_list()
+    public function action_folder_list($plugin)
     {
-        $this->plugin->add_texts('localization/');
+        $plugin->add_texts('localization/');
 
         $result = array(
             'status' => 'OK',
@@ -986,17 +920,17 @@ class roundav_files_engine
         $folders = null;
         $force_refresh = rcube_utils::get_input_value('force_refresh', rcube_utils::INPUT_GET) === "true";
 
-        if (isset($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID])) {
+        if (isset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID])) {
             if ($force_refresh) {
-                unset($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID]);
+                unset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID]);
             } else {
-                $folders = $_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID];
+                $folders = $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID];
             }
         }
 
         try {
             if (is_null($folders)) {
-                $filesPrefix = $this->plugin->gettext('files');
+                $filesPrefix = $plugin->gettext('files');
                 $folders = $this->filesystem->listContents('/', true)
                     ->filter(fn (StorageAttributes $attributes) => $attributes->isDir())
                     ->map(fn (StorageAttributes $attributes) => $filesPrefix .'/'.urldecode($attributes->path()))
@@ -1004,7 +938,7 @@ class roundav_files_engine
 
                 array_unshift($folders, $filesPrefix);
 
-                $_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID] = $folders;
+                $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID] = $folders;
             }
 
             $result['result'] = $folders;
@@ -1020,9 +954,9 @@ class roundav_files_engine
     /**
      * Handler for "file list" function
      */
-    private function action_file_list()
+    public function action_file_list($plugin)
     {
-        $this->plugin->add_texts('localization/');
+        $plugin->add_texts('localization/');
 
         $result = array(
             'status' => 'OK',
@@ -1035,7 +969,7 @@ class roundav_files_engine
         }
 
         try {
-            $filesPrefix = $this->plugin->gettext('files');
+            $filesPrefix = $plugin->gettext('files');
             $folder = str_replace($filesPrefix, '/', rcube_utils::get_input_value('folder', rcube_utils::INPUT_GET));
             $files = [];
 
@@ -1074,9 +1008,9 @@ class roundav_files_engine
     /**
      * Handler for "folder create" function
      */
-    private function action_folder_create()
+    public function action_folder_create($plugin)
     {
-        $this->plugin->add_texts('localization/');
+        $plugin->add_texts('localization/');
 
         $result = array(
             'status' => 'OK',
@@ -1087,12 +1021,12 @@ class roundav_files_engine
 
             // See https://github.com/thephpleague/flysystem/issues/1689
             $this->filesystem->createDirectory(
-                str_replace($this->plugin->gettext('files'), '', $folder)
+                str_replace($plugin->gettext('files'), '', $folder)
             );
 
-            if (isset($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID])) {
-                $_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID][] = $folder;
-                sort($_SESSION[$this->plugin::SESSION_FOLDERS_LIST_ID]);
+            if (isset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID])) {
+                $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][] = $folder;
+                sort($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID]);
             }
         }
         catch (Exception $e) {
@@ -1106,10 +1040,10 @@ class roundav_files_engine
     /**
      * Handler for "file get" function
      */
-    private function action_file_get()
+    public function action_file_get($plugin)
     {
         try {
-            $file = str_replace($this->plugin->gettext('files'), '/', rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
+            $file = str_replace($plugin->gettext('files'), '/', rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
 
             header('Content-Type: ' . $this->filesystem->mimeType($file));
             header('Content-disposition: attachment; filename=' . $this->get_filename_from_path(urldecode($file)));

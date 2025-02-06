@@ -83,7 +83,7 @@ class roundav extends rcube_plugin
             return;
         }
 
-        $this->engine->ui();
+        $this->engine->ui($this);
 
         return $args;
     }
@@ -106,7 +106,63 @@ class roundav extends rcube_plugin
         if ($this->engine)
         {
             $rc = rcube::get_instance();
-            $this->engine->actions($rc->task, $rc->action);
+            $rcTask = $rc->task;
+            $rcAction = $rc->action;
+
+            if ($rcTask == 'roundav' && $rcAction == 'file_api') {
+                $action = rcube_utils::get_input_value('method', rcube_utils::INPUT_GPC);
+            }
+            else if ($rcTask == 'roundav' && $rcAction) {
+                $action = $rcAction;
+            }
+            else if ($rcTask != 'roundav' && $_POST['act']) {
+                $action = $_POST['act'];
+            }
+            else {
+                $action = 'index';
+            }
+
+            switch ($action)
+            {
+                case 'index':
+                    $this->engine->action_index($this);
+                    break;
+
+                case 'open';
+                    $this->engine->action_open($this);
+                    break;
+
+                case 'save_file';
+                    $this->engine->action_save_file($this);
+                    break;
+
+                case 'attach_file':
+                    $this->engine->action_attach_file($this);
+                    break;
+
+                case 'folder_list':
+                    $this->engine->action_folder_list($this);
+                    break;
+
+                case 'folder_create':
+                    $this->engine->action_folder_create($this);
+                    break;
+
+                case 'file_list':
+                    $this->engine->action_file_list($this);
+                    break;
+
+                case 'file_get':
+                    $this->engine->action_file_get($this);
+                    break;
+
+                default:
+                    echo(json_encode([
+                        'status' => 'NOK',
+                        'reason' => 'Unknown action',
+                        'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
+                    ]));
+            }
         }
     }
 
