@@ -179,9 +179,11 @@
 }
 
 .filelist tbody tr td {
-  padding: 2px 7px;
-  height: 18px;
-  line-height: 18px;
+  padding: 0.25em;
+}
+
+.filelist tr.selected {
+  background-color: #c7e3ef;
 }
 
 .filelist tr > .size {
@@ -266,22 +268,11 @@
   display: block;
 }
 
-.filelist td.filename {
-  padding: 0 4px;
-}
-
 .filelist tbody td.filename span {
   background: url(images/unknown.png) 0 0 no-repeat;
   padding: 1px 0 3px 20px;
   height: 16px;
 }
-
-/*
-.filelist tbody td.filename span input {
-  padding: 0 2px;
-  height: 18px;
-}
-*/
 
 #fileinfobox table {
   table-layout: fixed;

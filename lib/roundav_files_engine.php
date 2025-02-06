@@ -949,7 +949,7 @@ class roundav_files_engine
                     'html'      => $content,
                     'name'      => $attachment['name'],
                     'mimetype'  => $attachment['mimetype'],
-                    'classname' => rcmail_filetype2classname($attachment['mimetype'], $attachment['name']),
+                    'classname' => rcube_utils::file2class($attachment['mimetype'], $attachment['name']),
                     'complete'  => true), $uploadid);
             }
             else if ($attachment['error']) {
