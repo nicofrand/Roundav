@@ -1,3 +1,11 @@
+:root {
+  --selected-background-color: #ebf9ff;
+}
+
+:root.dark-mode {
+  --selected-background-color: #374549;
+}
+
 /* Taskbar button */
 #taskbar a.button-files span.button-inner {
   background: url(images/buttons.png) 0 0 no-repeat;
@@ -124,13 +132,12 @@
 
 #files-folder-list ul.listing li:hover,
 #files-folder-list ul.listing li:focus {
-  background-color: aliceblue;
+  background-color: var(--selected-background-color);
 }
 
 #files-folder-list ul li span.name {
   padding: 6px 8px 6px 0;
   line-height: 25px;
-  color: #376572;
 }
 
 #files-folder-list ul li.mailbox.collection span.name {
@@ -166,7 +173,6 @@
 }
 
 #files-folder-list ul li:first-child {
-  border-radius: 4px 4px 0 0;
   border-top: 0;
 }
 
@@ -183,7 +189,7 @@
 }
 
 .filelist tr.selected {
-  background-color: #c7e3ef;
+  background-color: var(--selected-background-color);
 }
 
 .filelist tr > .size {
@@ -212,7 +218,6 @@
 
 .filelist thead tr th.sortedASC a,
 .filelist thead tr th.sortedDESC a {
-  color: #004458;
   text-decoration: underline;
   background-position: right -912px;
   background-repeat: no-repeat;
@@ -347,7 +352,6 @@
 #files-compose-dialog .searchbox input {
   width: 100%;
   height: 100%;
-  background-color: white;
 }
 
 #files-compose-dialog #searchreset {
@@ -413,7 +417,7 @@ ul.toolbarmenu li span.saveas {
 }
 
 table.propform td.source.selected {
-  background-color: #c7e3ef;
+  background-color: var(--selected-background-color);
 }
 
 table.propform td.source div {
