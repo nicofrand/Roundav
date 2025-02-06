@@ -1164,11 +1164,11 @@ function roundav_ui()
 
         // add virtual collections
         $.each(collections, function (i, n) {
-            var row = $('<li class="mailbox collection ' + n + '"></li>');
+            var row = $(`<li id="folder-collection-${n}" tabindex="0" class="mailbox collection ${n}">
+                <span class="name">${rcmail.gettext(`roundav.collection_${n}`)}</span>
+            </li>`);
 
-            row.attr({ id: 'folder-collection-' + n, tabindex: 0 })
-                .append($('<span class="name"></span>').text(rcmail.gettext('roundav.collection_' + n)))
-                .on('click', function () { file_api.folder_select(n, true); });
+            row.on('click', function () { file_api.folder_select(n, true); });
 
             list.append(row);
         });

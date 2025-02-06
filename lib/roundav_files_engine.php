@@ -801,7 +801,7 @@ class roundav_files_engine
         }
 
         // attachment upload action
-        if (!is_array($COMPOSE['attachments'])) {
+        if (!isset($COMPOSE['attachments']) || !is_array($COMPOSE['attachments'])) {
             $COMPOSE['attachments'] = array();
         }
 
@@ -820,27 +820,33 @@ class roundav_files_engine
             $path = tempnam($temp_dir, 'rcmAttmnt');
 
             try {
-              // save attachment to file
-              if ($fp = fopen($path, 'w+')) {
-                fwrite($fp, $this->filesystem->read($file));
-              }
-              else {
-                $errors[] = "Can't open temporary file";
-                rcube::raise_error(array(
-                        'code' => 500, 'type' => 'php', 'line' => __LINE__, 'file' => __FILE__,
-                        'message' => "Can't open temporary file"),
-                    true, false);
-                continue;
-              }
-              fclose($fp);
+                // save attachment to file
+                if ($fp = fopen($path, 'w+')) {
+                    fwrite($fp, $this->filesystem->read($file));
+                }
+                else {
+                    $errors[] = "Can't open temporary file";
+                    rcube::raise_error([
+                            'code' => 500, 'type' => 'php', 'line' => __LINE__, 'file' => __FILE__,
+                            'message' => "Can't open temporary file"
+                        ],
+                        true,
+                        false
+                    );
+                    continue;
+                }
+                fclose($fp);
             }
             catch (Exception $e) {
-              $errors[] = $e->getMessage();
-              rcube::raise_error(array(
-                      'code' => 500, 'type' => 'php', 'line' => __LINE__, 'file' => __FILE__,
-                      'message' => $e->getMessage()),
-                  true, false);
-              continue;
+                $errors[] = $e->getMessage();
+                rcube::raise_error([
+                        'code' => 500, 'type' => 'php', 'line' => __LINE__, 'file' => __FILE__,
+                        'message' => $e->getMessage()
+                    ],
+                    true,
+                    false
+                );
+                continue;
             }
 
             $attachment = array(
@@ -860,7 +866,7 @@ class roundav_files_engine
                 unset($attachment['data'], $attachment['status'], $attachment['abort']);
                 $COMPOSE['attachments'][$id] = $attachment;
 
-                if (($icon = $COMPOSE['deleteicon']) && is_file($icon)) {
+                if ((isset($COMPOSE['deleteicon']) && $icon = $COMPOSE['deleteicon']) && is_file($icon)) {
                     $button = html::img(array(
                         'src' => $icon,
                         'alt' => $plugin->rc->gettext('delete')
@@ -963,9 +969,18 @@ class roundav_files_engine
             'result' => array(),
             'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
         );
+
+        $searchKeyword = '';
+        $searchType = '';
+
         $search = rcube_utils::get_input_value('search', rcube_utils::INPUT_GET);
         if (!empty($search)) {
-            $search = is_array($search) ? strtolower($search['name'] ?? '') : strtolower($search);
+            if (is_array($search)) {
+                $searchKeyword = strtolower($search['name'] ?? '');
+                $searchType = strtolower($search['class'] ?? '');
+            } else {
+                $searchKeyword = strtolower($search);
+            }
         }
 
         try {
@@ -976,25 +991,43 @@ class roundav_files_engine
             $fsFiles = $this->filesystem->listContents($folder, false)
                 ->filter(fn (StorageAttributes $attributes) => $attributes->isFile());
 
+            if (!empty($searchKeyword) || !empty($searchType)) {
+                $fsFiles = $fsFiles->filter(function (StorageAttributes $attributes) use ($searchKeyword, $searchType) {
+                    if (!$attributes->isFile()) {
+                        return false;
+                    }
+
+                    if (!empty($searchKeyword)) {
+                        $name = strtolower(urldecode(basename($attributes->path())));
+
+                        if (strpos($name, $searchKeyword) === false)
+                        {
+                            return false;
+                        }
+                    }
+
+                    if (!empty($searchType)) {
+                        $fileType = explode('/', $attributes['mimeType'] ?? '')[0];
+                        if ($searchType !== $fileType)
+                        {
+                            return false;
+                        }
+                    }
+
+                    return true;
+                });
+            }
+
             foreach ($fsFiles as $fsfile) {
-                $basename = urldecode(basename($fsfile->path()));
-
-                if (!empty($search)) {
-                $name = strtolower($basename);
-
-                if (strpos($name, $search) === false) {
-                    continue;
-                }
-                }
-
-                $key = urlencode($filesPrefix. '/'. urldecode($fsfile['path']));
-                $files[$key] = array(
-                    'name' => $basename,
+                $key = urlencode($filesPrefix. '/'. urldecode($fsfile->path()));
+                $files[$key] = [
+                    'name' => urldecode(basename($fsfile->path())),
                     'type' => $fsfile['mimeType'],
                     'size' => $fsfile['fileSize'],
                     'mtime' => $fsfile['lastModified'],
-                );
+                ];
             }
+
             $result['result'] = $files;
         }
         catch (Exception $e) {
@@ -1064,7 +1097,7 @@ class roundav_files_engine
     }
 
     /**
-     * Converti le chemin en nom de fichier
+     * Convertit le chemin en nom de fichier
      * @param string $path
      * @return string
      */
