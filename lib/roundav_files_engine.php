@@ -145,7 +145,10 @@ class roundav_files_engine
         }
 
         $input_name    = new html_inputfield(array('id' => 'folder-name', 'name' => 'name', 'size' => 30));
-        $select_parent = new html_select(array('id' => 'folder-parent', 'name' => 'parent'));
+        // .pretty-select prevents Roundcube's elastic skin bootstrap_style() from
+        // converting this select to a Bootstrap popover dropdown, which breaks when
+        // the dialog content is moved into the parent window's DOM (framed context).
+        $select_parent = new html_select(array('id' => 'folder-parent', 'name' => 'parent', 'class' => 'pretty-select'));
         $table         = new html_table(array('cols' => 2, 'class' => 'propform'));
 
         $table->add('title', html::label('folder-name', rcube::Q($this->plugin->gettext('foldername'))));
@@ -177,7 +180,7 @@ class roundav_files_engine
         }
 
         $input_name    = new html_inputfield(array('id' => 'folder-edit-name', 'name' => 'name', 'size' => 30));
-        $select_parent = new html_select(array('id' => 'folder-edit-parent', 'name' => 'parent'));
+        $select_parent = new html_select(array('id' => 'folder-edit-parent', 'name' => 'parent', 'class' => 'pretty-select'));
         $table         = new html_table(array('cols' => 2, 'class' => 'propform'));
 
         $table->add('title', html::label('folder-name', rcube::Q($this->plugin->gettext('foldername'))));
