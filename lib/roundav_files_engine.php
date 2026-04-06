@@ -1060,6 +1060,7 @@ class roundav_files_engine
         );
         try {
             $folder = urldecode(rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST));
+
             $filesPrefix = $plugin->gettext('files');
 
             // Strip localised "Files/" prefix to get WebDAV-relative path.
@@ -1068,10 +1069,7 @@ class roundav_files_engine
 
             $this->filesystem->createDirectory($webdav_path);
 
-            if (isset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID])) {
-                $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][] = $folder;
-                sort($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID]);
-            }
+            unset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID]);
         }
         catch (Exception $e) {
             $result['status'] = 'NOK';
