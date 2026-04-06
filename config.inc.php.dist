@@ -1,15 +1,22 @@
 <?php
-// Show the drive task ?
-$rcmail_config['show_drive_task'] = true;
+// All settings below are optional.
+// Users can configure the WebDAV connection themselves via Settings > Cloud Storage.
+// Values set here act as server-wide defaults and can be locked by adding the key
+// to the 'dont_override' list in Roundcube's main config.inc.php, e.g.:
+//   $config['dont_override'] = ['driver_webdav_url', 'driver_webdav_prefix'];
 
-// Configuration WebDAV
-$rcmail_config['driver_webdav_url'] = 'http://url_to_your_webdav/prefix/file.php/webdav/';
+// Show the "Cloud Storage" entry in the task bar.
+$config['show_drive_task'] = true;
 
-// Prefix (ex for nextcloud: /remote.php/webdav/). Make sure there is a trailing slash.
-$rcmail_config['driver_webdav_prefix'] = '/prefix/file.php/webdav/';
+// WebDAV server base URL (e.g. https://cloud.example.com/remote.php/dav/files/USERNAME/).
+// Leave unset to require users to configure it themselves.
+$config['driver_webdav_url'] = null;
 
-// Override the username provided by Rounducbe
-$rcmail_config['driver_webdav_username'] = null;
+// WebDAV path prefix (e.g. /remote.php/dav/files/USERNAME/).
+$config['driver_webdav_prefix'] = null;
 
-// Override the provided by Rounducbe
-$rcmail_config['driver_webdav_password'] = null;
+// Override the username provided by Roundcube. Leave null to use the user's login name.
+$config['driver_webdav_username'] = null;
+
+// Override the password provided by Roundcube. Leave null to use the user's login password.
+$config['driver_webdav_password'] = null;

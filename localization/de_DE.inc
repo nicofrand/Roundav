@@ -77,4 +77,9 @@ $labels['arialabelfilesavedialog'] = 'Speichern unter Fenster';
 $labels['arialabelfileprops'] = 'Dateieigenschaften';
 $labels['arialabelfilecontent'] = 'Dateiinhalt';
 
+$labels['settings_section']   = 'Cloud-Speicher';
+$labels['webdav_url']         = 'WebDAV-Server-URL';
+$labels['webdav_prefix']      = 'WebDAV-Pfad';
+$labels['webdav_username']    = 'Benutzername (leer lassen für Anmeldedaten)';
+$labels['webdav_password']    = 'Passwort (leer lassen für Anmeldedaten)';
 ?>

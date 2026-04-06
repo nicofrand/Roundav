@@ -77,4 +77,9 @@ $labels['arialabelfilesavedialog'] = 'Diálogo de salvamento de Arquivo(s)';
 $labels['arialabelfileprops'] = 'Propriedades do arquivo';
 $labels['arialabelfilecontent'] = 'Conteúdo do arquivo';
 
+$labels['settings_section']   = 'Armazenamento em nuvem';
+$labels['webdav_url']         = 'URL do servidor WebDAV';
+$labels['webdav_prefix']      = 'Caminho WebDAV';
+$labels['webdav_username']    = 'Nome de usuário (deixe em branco para usar suas credenciais)';
+$labels['webdav_password']    = 'Senha (deixe em branco para usar sua senha de login)';
 ?>
