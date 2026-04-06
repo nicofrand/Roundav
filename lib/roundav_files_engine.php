@@ -3,7 +3,7 @@
 use Sabre\DAV\Client;
 use League\Flysystem\Filesystem;
 use League\FlySystem\StorageAttributes;
-use League\Flysystem\WebDAV\WebDAVAdapter;
+require_once __DIR__ . '/PatchedWebDAVAdapter.php';
 class roundav_files_engine
 {
     /**
@@ -38,7 +38,7 @@ class roundav_files_engine
         );
 
         $client = new Client($settings);
-        $adapter = new WebDAVAdapter($client, $plugin->rc->config->get('driver_webdav_prefix'));
+        $adapter = new PatchedWebDAVAdapter($client, $plugin->rc->config->get('driver_webdav_prefix'));
         $this->filesystem = new Filesystem($adapter);
     }
 
