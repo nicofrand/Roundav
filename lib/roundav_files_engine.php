@@ -748,10 +748,14 @@ class roundav_files_engine
             // send request to the API
             try {
                 if (!is_null($dest)) {
-                    $dest = str_replace($plugin->gettext('files'), '/', $dest);
+                    // Strip the localised "Files/" prefix to get the WebDAV-relative path.
+                    // str_replace('Files','/',...) produced '//subdir' (double slash) — use substr instead.
+                    $filesPrefix = $plugin->gettext('files');
+                    $dest = substr($dest, strlen($filesPrefix) + 1); // strip "Files/"
+                    if ($dest === false) { $dest = ''; }
                 }
 
-                $this->filesystem->write($dest .  '/' . $attach_name, file_get_contents($path));
+                $this->filesystem->write(ltrim($dest, '/') . '/' . $attach_name, file_get_contents($path));
                 $files[] = $attach_name;
             }
             catch (Exception $e) {
