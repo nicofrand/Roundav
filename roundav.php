@@ -26,7 +26,12 @@
  * along with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-require_once(__DIR__.'/vendor/autoload.php');
+// Use Roundcube's main vendor autoloader when installed via Composer (no local vendor dir)
+$autoload = file_exists(__DIR__.'/vendor/autoload.php')
+    ? __DIR__.'/vendor/autoload.php'
+    : __DIR__.'/../../vendor/autoload.php';
+require_once($autoload);
+
 require_once(__DIR__.'/lib/roundav_files_engine.php');
 
 class roundav extends rcube_plugin
