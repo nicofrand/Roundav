@@ -774,6 +774,9 @@ class roundav_files_engine
 
         if ($count = count($files)) {
             $msg = $plugin->gettext(array('name' => 'saveallnotice', 'vars' => array('n' => $count)));
+            // Append destination folder so the user knows where the file(s) were saved
+            $dest_display = strlen($dest) ? $dest : '/';
+            $msg .= ' → ' . $dest_display;
             $plugin->rc->output->show_message($msg, 'confirmation');
         }
         if ($count = count($errors)) {
