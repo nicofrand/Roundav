@@ -77,6 +77,11 @@ $labels['arialabelfilesavedialog'] = 'Boite de dialogue d\'enregistrement de fic
 $labels['arialabelfileprops'] = 'Propriétés du fichier';
 $labels['arialabelfilecontent'] = 'Contenu de fichier';
 
-$labels['refreshfolderslist'] = 'Refresh folders list';
+$labels['refreshfolderslist'] = 'Actualiser la liste des dossiers';
 
+$labels['settings_section']   = 'Stockage cloud';
+$labels['webdav_url']         = 'URL du serveur WebDAV';
+$labels['webdav_prefix']      = 'Chemin WebDAV';
+$labels['webdav_username']    = 'Nom d\'utilisateur (laisser vide pour utiliser votre identifiant)';
+$labels['webdav_password']    = 'Mot de passe (laisser vide pour utiliser votre mot de passe de connexion)';
 ?>

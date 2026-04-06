@@ -29,17 +29,100 @@ class roundav_files_engine
      */
     public function __construct($plugin)
     {
-        $this->plugin  = $plugin;
+        $this->plugin = $plugin;
+
+        $url = $plugin->rc->config->get('driver_webdav_url');
+        if (empty($url)) {
+            return; // Not configured; filesystem stays null
+        }
 
         $settings = array(
-            'baseUri' => $plugin->rc->config->get('driver_webdav_url'),
-            'userName' => $plugin->rc->config->get('driver_webdav_username') ?? $plugin->rc->user->get_username(),
-            'password' => $plugin->rc->config->get('driver_webdav_password') ?? $plugin->rc->get_user_password(),
+            'baseUri'  => $url,
+            'userName' => $plugin->rc->config->get('driver_webdav_username') ?: $plugin->rc->user->get_username(),
+            'password' => $plugin->rc->config->get('driver_webdav_password') ?: $plugin->rc->get_user_password(),
         );
 
         $client = new Client($settings);
         $adapter = new PatchedWebDAVAdapter($client, $plugin->rc->config->get('driver_webdav_prefix'));
         $this->filesystem = new Filesystem($adapter);
+    }
+
+    /**
+     * Returns false and sends a JSON error response if the filesystem is not configured.
+     */
+    private function require_filesystem(array $result): bool
+    {
+        if ($this->filesystem !== null) {
+            return true;
+        }
+        $result['status'] = 'NOK';
+        $result['reason'] = 'not_configured';
+        echo json_encode($result);
+        exit();
+    }
+
+    /**
+     * Adds the roundav section to the preferences section list.
+     */
+    public function prefs_list($args)
+    {
+        $this->plugin->add_texts('localization/');
+        $rc = $this->plugin->rc;
+        $dont_override = (array) $rc->config->get('dont_override');
+
+        $fields = array(
+            'driver_webdav_url'      => array('type' => 'text',     'label' => 'webdav_url'),
+            'driver_webdav_prefix'   => array('type' => 'text',     'label' => 'webdav_prefix'),
+            'driver_webdav_username' => array('type' => 'text',     'label' => 'webdav_username'),
+            'driver_webdav_password' => array('type' => 'password', 'label' => 'webdav_password'),
+        );
+
+        $args['blocks']['main']['name'] = rcube::Q($this->plugin->gettext('settings_section'));
+
+        foreach ($fields as $key => $field) {
+            if (in_array($key, $dont_override)) {
+                continue;
+            }
+
+            $attrib = array(
+                'name'         => '_' . $key,
+                'id'           => 'ff_' . $key,
+                'type'         => $field['type'],
+                'class'        => 'form-control',
+                'autocomplete' => 'off',
+            );
+
+            $input = new html_inputfield($attrib);
+            $value = $field['type'] === 'password' ? '' : $rc->config->get($key, '');
+
+            $args['blocks']['main']['options'][$key] = array(
+                'title'   => html::label('ff_' . $key, rcube::Q($this->plugin->gettext($field['label']))),
+                'content' => $input->show($value),
+            );
+        }
+
+        return $args;
+    }
+
+    /**
+     * Saves roundav preferences submitted from the settings form.
+     */
+    public function prefs_save($args)
+    {
+        $dont_override = (array) $this->plugin->rc->config->get('dont_override');
+        $keys = array('driver_webdav_url', 'driver_webdav_prefix', 'driver_webdav_username', 'driver_webdav_password');
+
+        foreach ($keys as $key) {
+            if (in_array($key, $dont_override)) {
+                continue;
+            }
+            $args['prefs'][$key] = rcube_utils::get_input_value('_' . $key, rcube_utils::INPUT_POST);
+        }
+
+        // Invalidate the folder cache so stale entries don't persist after a server change.
+        unset($_SESSION[roundav::SESSION_FOLDERS_LIST_ID]);
+
+        return $args;
     }
 
     /**
@@ -932,6 +1015,8 @@ class roundav_files_engine
             'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
         );
 
+        $this->require_filesystem($result);
+
         $folders = null;
         $force_refresh = rcube_utils::get_input_value('force_refresh', rcube_utils::INPUT_GET) === "true";
 
@@ -978,6 +1063,8 @@ class roundav_files_engine
             'result' => array(),
             'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
         );
+
+        $this->require_filesystem($result);
 
         $searchKeyword = '';
         $searchType = '';
@@ -1058,6 +1145,9 @@ class roundav_files_engine
             'status' => 'OK',
             'req_id' => rcube_utils::get_input_value('req_id', rcube_utils::INPUT_GET),
         );
+
+        $this->require_filesystem($result);
+
         try {
             $folder = urldecode(rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST));
 

@@ -60,6 +60,12 @@ class roundav extends rcube_plugin
 
         $this->add_hook('startup', array($this, 'startup'));
         $this->add_hook('logout', array($this, 'onlogout'));
+
+        if ($this->rc->task == 'settings') {
+            $this->add_hook('preferences_sections_list', array($this, 'prefs_section'));
+            $this->add_hook('preferences_list', array($this, 'prefs_list'));
+            $this->add_hook('preferences_save', array($this, 'prefs_save'));
+        }
     }
 
     public function refresh($args = null)
@@ -96,6 +102,34 @@ class roundav extends rcube_plugin
         unset($_SESSION[self::SESSION_FOLDERS_LIST_ID]);
 
         return $args;
+    }
+
+    public function prefs_section($args)
+    {
+        $this->add_texts('localization/');
+        $args['list']['roundav'] = array(
+            'id'      => 'roundav',
+            'section' => $this->gettext('settings_section'),
+        );
+        return $args;
+    }
+
+    public function prefs_list($args)
+    {
+        if ($args['section'] != 'roundav') {
+            return $args;
+        }
+        $this->refresh();
+        return $this->engine->prefs_list($args);
+    }
+
+    public function prefs_save($args)
+    {
+        if ($args['section'] != 'roundav') {
+            return $args;
+        }
+        $this->refresh();
+        return $this->engine->prefs_save($args);
     }
 
     /**

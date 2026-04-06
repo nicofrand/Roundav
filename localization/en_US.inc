@@ -78,4 +78,10 @@ $labels['arialabelfileprops'] = 'File properties';
 $labels['arialabelfilecontent'] = 'File content';
 
 $labels['refreshfolderslist'] = 'Refresh folders list';
+
+$labels['settings_section']   = 'Cloud Storage';
+$labels['webdav_url']         = 'WebDAV server URL';
+$labels['webdav_prefix']      = 'WebDAV path';
+$labels['webdav_username']    = 'Username (leave blank to use your login)';
+$labels['webdav_password']    = 'Password (leave blank to use your login password)';
 ?>
