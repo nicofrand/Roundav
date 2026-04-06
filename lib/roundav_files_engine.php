@@ -666,7 +666,8 @@ class roundav_files_engine
         $plugin->add_texts('localization/');
 
         $file = urldecode(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
-        $file = str_replace($plugin->gettext('files'), '/', $file);
+        $filesPrefix = $plugin->gettext('files');
+        $file = ltrim(substr($file, strlen($filesPrefix)), '/');
 
         try {
           $this->file_data['type'] = $this->filesystem->mimeType($file);
@@ -748,14 +749,11 @@ class roundav_files_engine
             // send request to the API
             try {
                 if (!is_null($dest)) {
-                    // Strip the localised "Files/" prefix to get the WebDAV-relative path.
-                    // str_replace('Files','/',...) produced '//subdir' (double slash) — use substr instead.
                     $filesPrefix = $plugin->gettext('files');
-                    $dest = substr($dest, strlen($filesPrefix) + 1); // strip "Files/"
-                    if ($dest === false) { $dest = ''; }
+                    $dest = ltrim(substr($dest, strlen($filesPrefix)), '/');
                 }
 
-                $this->filesystem->write(ltrim($dest, '/') . '/' . $attach_name, file_get_contents($path));
+                $this->filesystem->write($dest .  '/' . $attach_name, file_get_contents($path));
                 $files[] = $attach_name;
             }
             catch (Exception $e) {
@@ -824,7 +822,8 @@ class roundav_files_engine
         foreach ($files as $file) {
             // decode filename
             $file = urldecode($file);
-            $file = str_replace($plugin->gettext('files'), '/', $file);
+            $filesPrefix = $plugin->gettext('files');
+            $file = ltrim(substr($file, strlen($filesPrefix)), '/');
 
             // set location of downloaded file
             $path = tempnam($temp_dir, 'rcmAttmnt');
@@ -1061,11 +1060,13 @@ class roundav_files_engine
         );
         try {
             $folder = urldecode(rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST));
+            $filesPrefix = $plugin->gettext('files');
 
-            // See https://github.com/thephpleague/flysystem/issues/1689
-            $this->filesystem->createDirectory(
-                str_replace($plugin->gettext('files'), '', $folder)
-            );
+            // Strip localised "Files/" prefix to get WebDAV-relative path.
+            // str_replace would produce a leading slash ("/FOLD/...") — use substr instead.
+            $webdav_path = ltrim(substr($folder, strlen($filesPrefix)), '/');
+
+            $this->filesystem->createDirectory($webdav_path);
 
             if (isset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID])) {
                 $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][] = $folder;
@@ -1086,7 +1087,8 @@ class roundav_files_engine
     public function action_file_get($plugin)
     {
         try {
-            $file = str_replace($plugin->gettext('files'), '/', rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
+            $filesPrefix = $plugin->gettext('files');
+            $file = ltrim(substr(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET), strlen($filesPrefix)), '/');
 
             header('Content-Type: ' . $this->filesystem->mimeType($file));
             header('Content-disposition: attachment; filename=' . $this->get_filename_from_path(urldecode($file)));
