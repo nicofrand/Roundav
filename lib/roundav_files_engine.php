@@ -811,6 +811,11 @@ class roundav_files_engine
         // @TODO: handle error
         // @TODO: implement file upload using file URI instead of body upload
 
+        if (!is_null($dest)) {
+            $filesPrefix = $plugin->gettext('files');
+            $dest = ltrim(substr($dest, strlen($filesPrefix)), '/');
+        }
+
         foreach ($attachments as $attach_name => $attach_prop) {
             $path = tempnam($temp_dir, 'rcmAttmnt');
 
@@ -831,11 +836,6 @@ class roundav_files_engine
 
             // send request to the API
             try {
-                if (!is_null($dest)) {
-                    $filesPrefix = $plugin->gettext('files');
-                    $dest = ltrim(substr($dest, strlen($filesPrefix)), '/');
-                }
-
                 $this->filesystem->write($dest .  '/' . $attach_name, file_get_contents($path));
                 $files[] = $attach_name;
             }
