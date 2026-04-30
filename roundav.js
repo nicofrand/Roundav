@@ -1110,7 +1110,11 @@ function roundav_ui()
 
     this.http_error = function (request, status, err)
     {
-        rcmail.http_error(request, status, err);
+        var elem = this._get_folder_list_element();
+        if (elem.children('p.loading').length) {
+            elem.empty();
+        }
+        rcmail.http_error(request, status, err, this.req);
     };
 
     this._get_folder_list_element = function ()
