@@ -11,6 +11,7 @@ $labels['fromcloud'] = 'Aus der Cloud...';
 $labels['selectfiles'] = 'Dateien zum Anhängen auswählen';
 $labels['attachsel'] = 'Ausgewählte anhängen';
 $labels['foldercreate'] = 'Verzeichnis erstellen';
+$labels['createsubfolder'] = 'Unterordner erstellen';
 $labels['folderinside'] = 'Hier einfügen';
 $labels['foldername'] = 'Verzeichnisname';
 $labels['name'] = 'Name';

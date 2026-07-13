@@ -66,12 +66,10 @@ window.rcmail && window.files_api && rcmail.addEventListener('init', function ()
             }
 
             rcmail.addEventListener('menu-open', roundav_attach_menu_open);
-            rcmail.enable_command('folder-create', true);
             rcmail.enable_command('folder-force-reload', true);
         }
         // attachment preview
         else if (rcmail.env.action == 'get') {
-            rcmail.enable_command('folder-create', true);
             rcmail.enable_command('folder-force-reload', true);
         }
 
@@ -143,8 +141,6 @@ function roundav_directory_selector_dialog(id)
         label = 'saveall';
     }
 
-    $('#foldercreatelink').attr('tabindex', 0);
-
     buttons[rcmail.gettext('roundav.save')] = function () {
         var lock = rcmail.set_busy(true, 'saving');
         var request = {
@@ -185,15 +181,8 @@ function roundav_directory_selector_dialog(id)
         width: 500,
     }, fn);
 
-    // "enable" folder creation when dialog is displayed in parent window
+    // "enable" folder refresh when dialog is displayed in parent window
     if (rcmail.is_framed()) {
-        if (!parent.rcmail.folder_create) {
-            parent.rcmail.enable_command('folder-create', true);
-            parent.rcmail.folder_create = function () {
-                window.roundav_folder_create_dialog();
-            };
-        }
-
         if (!parent.rcmail.folder_force_reload) {
             parent.rcmail.enable_command('folder-force-reload', true);
             parent.rcmail.folder_force_reload = function () {
@@ -290,8 +279,10 @@ function roundav_folder_options(all, sep)
     return options;
 }
 
-// folder creation dialog
-function roundav_folder_create_dialog()
+// folder creation dialog. `parentPath` is always fixed by the caller (either a specific
+// folder clicked via its "+" icon, or the root, from the retargeted toolbar button) — there
+// is no free-choice parent picker, so no full-tree fetch is needed to populate one.
+function roundav_folder_create_dialog(parentPath)
 {
     var dialog = $('#files-folder-create-dialog'),
         buttons = {},
@@ -325,16 +316,9 @@ function roundav_folder_create_dialog()
     // Fix submitting form with Enter
     $('form', dialog).submit(roundav_dialog_submit_handler);
 
-    // build parent selector from the complete folder list (the lazy tree is only partial)
-    select.append($('<option>').val('').text('---'));
-    var loadingOpt = $('<option>').prop('disabled', true).text(rcmail.gettext('loading'));
-    select.append(loadingOpt);
-
-    file_api.folder_list_all(function (all) {
-        loadingOpt.remove();
-        select.append(roundav_folder_options(all, file_api.env.directory_separator));
-        if (file_api.env.folder) { select.val(file_api.env.folder); }
-    });
+    // Parent is fixed and read-only: a single pre-selected, disabled option. select.val()
+    // still returns it correctly (we read it via jQuery, not native form submission).
+    select.append($('<option>').val(parentPath).text(parentPath)).prop('disabled', true);
 }
 
 // folder edit dialog
@@ -690,11 +674,6 @@ rcube_webmail.prototype.files_set_quota = function (p)
     this.set_quota(p);
 };
 
-rcube_webmail.prototype.folder_create = function ()
-{
-    roundav_folder_create_dialog();
-};
-
 rcube_webmail.prototype.folder_rename = function ()
 {
     roundav_folder_edit_dialog();
@@ -941,6 +920,18 @@ function roundav_ui()
             e.stopPropagation();
             file_api.folder_toggle(i);
         });
+
+        // Creates a subfolder directly under this (already-visible/loaded) folder, without
+        // needing a free-choice parent picker (and so without a full-tree fetch). Not offered
+        // when composing/attaching — that flow is attach-only, no folder management.
+        if (rcmail.env.action != 'compose') {
+            $(`<span class="create-subfolder" title="${escapeHTML(rcmail.gettext('roundav.createsubfolder'))}"></span>`)
+                .appendTo(row)
+                .click(function (e) {
+                    e.stopPropagation();
+                    roundav_folder_create_dialog(i);
+                });
+        }
 
         // Clicking the name selects the folder (loads its files).
         $('span.name', row).attr('tabindex', 0)

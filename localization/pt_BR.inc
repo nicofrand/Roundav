@@ -11,6 +11,7 @@ $labels['fromcloud'] = 'Da nuvem...';
 $labels['selectfiles'] = 'Selecione o(s) arquivo(s) para anexar...';
 $labels['attachsel'] = 'Anexo selecionado';
 $labels['foldercreate'] = 'Criar pasta';
+$labels['createsubfolder'] = 'Criar subpasta';
 $labels['folderinside'] = 'Inserir dentro';
 $labels['foldername'] = 'Nome da pasta';
 $labels['name'] = 'Nome';

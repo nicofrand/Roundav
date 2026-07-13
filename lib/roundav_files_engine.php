@@ -171,7 +171,7 @@ class roundav_files_engine
                 'saveall', 'fromcloud', 'attachsel', 'selectfiles', 'attaching',
                 'collection_audio', 'collection_video', 'collection_image', 'collection_document',
                 'folderauthtitle', 'authenticating',
-                'refreshfolderslist'
+                'refreshfolderslist', 'createsubfolder'
             );
         }
 

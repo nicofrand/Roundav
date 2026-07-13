@@ -11,6 +11,7 @@ $labels['fromcloud'] = 'From cloud...';
 $labels['selectfiles'] = 'Select file(s) to attach...';
 $labels['attachsel'] = 'Attach selected';
 $labels['foldercreate'] = 'Create folder';
+$labels['createsubfolder'] = 'Create a subdirectory';
 $labels['folderinside'] = 'Insert inside';
 $labels['foldername'] = 'Folder name';
 $labels['name'] = 'Name';

@@ -11,6 +11,11 @@ License
 
 This plugin is released under the [GNU Affero General Public License Version 3](https://www.gnu.org/licenses/agpl-3.0.html).
 
+Credits
+-------
+
+The "create a subdirectory" folder icon is ["Folder Plus"](https://www.svgrepo.com/svg/532824/folder-plus) from SVG Repo.
+
 Install
 -------
 
