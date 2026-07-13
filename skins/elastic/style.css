@@ -103,7 +103,8 @@
   border: 0;
 }
 
-#files-folder-list .loading {
+/* Full-list loader (initial folder load), shown as <p class="loading"> in the list container. */
+#files-folder-list p.loading {
   padding: 1em;
   padding-bottom: 2em;
   text-align: center;
@@ -118,14 +119,65 @@
   padding-right: 1em;
 }
 
-#files-folder-list ul.listing li:hover,
-#files-folder-list ul.listing li:focus {
-  background-color: var(--selected-background-color);
+/* Nesting-based indentation for the collapsible tree (replaces the old branch spacers). */
+#files-folder-list ul.subfolders {
+  padding-left: 1.2em;
+}
+
+#files-folder-list ul li.mailbox {
+  position: relative;
+}
+
+/* Expand/collapse arrow. Reserves space on every row so leaves stay aligned; the chevron
+   glyph only shows on nodes that have children. */
+#files-folder-list ul li span.toggle {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.2em;
+  line-height: 37px;
+  text-align: center;
+  color: #888;
+}
+
+#files-folder-list ul li.has-children > span.toggle {
+  cursor: pointer;
+}
+
+#files-folder-list ul li.has-children > span.toggle::before {
+  content: "\f0da"; /* caret-right */
+  font-family: Icons;
+  font-weight: 900;
+  font-style: normal;
+  display: inline-block;
+  transition: transform 0.1s ease-in-out;
+}
+
+#files-folder-list ul li.has-children.expanded > span.toggle::before {
+  transform: rotate(90deg);
+}
+
+/* Per-node spinner shown while a boundary folder's next batch is loading. */
+#files-folder-list ul li.loading {
+  list-style: none;
+  min-height: 20px;
+  padding: 4px 0 4px 1.4em;
+  background-image: url("./images/loading.gif");
+  background-repeat: no-repeat;
+  background-position: 4px center;
 }
 
 #files-folder-list ul li span.name {
-  padding: 6px 8px 6px 0;
+  display: block;
+  padding: 6px 8px 6px 1.4em;
   line-height: 25px;
+}
+
+/* Row highlight is on the label only, so hovering a child doesn't tint its ancestors. */
+#files-folder-list ul li > span.name:hover,
+#files-folder-list ul li > span.name:focus,
+#files-folder-list ul li.selected > span.name {
+  background-color: var(--selected-background-color);
 }
 
 #files-folder-list ul li.collection span.name {
@@ -158,16 +210,8 @@
   content: "\f15b";
 }
 
-#files-folder-list ul li span.branch {
-  display: inline-block;
-}
-
 #files-folder-list ul li:first-child {
   border-top: 0;
-}
-
-#files-folder-list ul li.virtual span {
-  color: #aaa;
 }
 
 .filelist thead tr th {

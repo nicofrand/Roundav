@@ -865,6 +865,13 @@ class roundav_files_engine
 
     /**
      * Handler for "folders list" function
+     *
+     * Two modes:
+     *  - default (lazy): returns a subtree bounded to `depth` levels (default 3) below the
+     *    `folder` base (default root). Boundary folders at the deepest level get an optimistic
+     *    toggle so the client can lazily request the next batch on expand.
+     *  - flat=true: returns the complete recursive list of folder paths (strings). Only used by
+     *    the "search all folders" / collection features, which must scan the whole tree.
      */
     public function action_folder_list($plugin)
     {
@@ -878,31 +885,81 @@ class roundav_files_engine
 
         $this->require_filesystem($result);
 
-        $folders = null;
+        $filesPrefix   = $plugin->gettext('files');
+        $flat          = rcube_utils::get_input_value('flat', rcube_utils::INPUT_GET) === "true";
         $force_refresh = rcube_utils::get_input_value('force_refresh', rcube_utils::INPUT_GET) === "true";
 
-        if (isset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID])) {
-            if ($force_refresh) {
-                unset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID]);
-            } else {
-                $folders = $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID];
-            }
+        if ($force_refresh) {
+            // Drop every cached subtree (and the flat list).
+            unset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID]);
         }
 
+        // Full recursive list (search / collections).
+        if ($flat) {
+            try {
+                $result['result'] = array(
+                    'flat'    => true,
+                    'folders' => $this->flat_folder_list($plugin, $filesPrefix),
+                );
+            }
+            catch (Exception $e) {
+                $result['status'] = 'NOK';
+                $result['reason'] = "Can't list folders: “" . $e->getMessage() . "”";
+            }
+            echo json_encode($result);
+            exit();
+        }
+
+        // Bounded, lazy subtree listing.
+        $depth = (int) rcube_utils::get_input_value('depth', rcube_utils::INPUT_GET);
+        if ($depth <= 0) {
+            $depth = 2;
+        }
+
+        $folderParam = rcube_utils::get_input_value('folder', rcube_utils::INPUT_GET);
+        if ($folderParam === null || $folderParam === '') {
+            $folderParam = $filesPrefix;
+        }
+
+        // Translate display path "Files/a/b" -> WebDAV path. Strip only the leading prefix
+        // segment (not a blanket str_replace) so a folder whose own name contains "Files"
+        // (e.g. "Files/2024/Files_backup") isn't corrupted.
+        $baseFsPath = $folderParam === $filesPrefix
+            ? '/'
+            : '/' . ltrim(substr($folderParam, strlen($filesPrefix) + 1), '/');
+        $baseDepth  = $folderParam === $filesPrefix ? 0 : count(explode('/', $folderParam)) - 1;
+        // Cache key includes depth so a subtree cached at one depth is never served back for a
+        // request asking for a different depth.
+        $baseKey    = $folderParam . '@' . $depth;
+
+        // Always present, even on error, so the client can identify which folder a response
+        // (success or failure) belongs to.
+        $result['result'] = array(
+            'base'    => $folderParam,
+            'depth'   => $depth,
+            'folders' => array(),
+        );
+
         try {
-            if (is_null($folders)) {
-                $filesPrefix = $plugin->gettext('files');
-                $folders = $this->filesystem->listContents('/', true)
-                    ->filter(fn (StorageAttributes $attributes) => $attributes->isDir())
-                    ->map(fn (StorageAttributes $attributes) => $filesPrefix .'/'.urldecode($attributes->path()))
-                    ->toArray();
+            $subtree = $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][$baseKey] ?? null;
 
-                array_unshift($folders, $filesPrefix);
+            if ($subtree === null) {
+                $subtree = $this->list_dirs_bounded($baseFsPath, $baseDepth, $depth, $filesPrefix);
 
-                $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID] = $folders;
+                // From the root, include the "Files" node itself (matches the old array_unshift).
+                if ($folderParam === $filesPrefix) {
+                    array_unshift($subtree, array(
+                        'path'         => $filesPrefix,
+                        'depth'        => 0,
+                        'has_children' => count($subtree) > 0,
+                        'boundary'     => false,
+                    ));
+                }
+
+                $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][$baseKey] = $subtree;
             }
 
-            $result['result'] = $folders;
+            $result['result']['folders'] = $subtree;
         }
         catch (Exception $e) {
             $result['status'] = 'NOK';
@@ -910,6 +967,96 @@ class roundav_files_engine
         }
         echo json_encode($result);
         exit();
+    }
+
+    /**
+     * Full recursive list of directory display-paths (legacy shape), cached per session.
+     * Used only for search / collection fan-out.
+     *
+     * @return string[]
+     */
+    private function flat_folder_list($plugin, $filesPrefix)
+    {
+        $cacheKey = '__flat__';
+
+        if (isset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][$cacheKey])) {
+            return $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][$cacheKey];
+        }
+
+        $folders = $this->filesystem->listContents('/', true)
+            ->filter(fn (StorageAttributes $attributes) => $attributes->isDir())
+            ->map(fn (StorageAttributes $attributes) => $filesPrefix . '/' . urldecode($attributes->path()))
+            ->toArray();
+
+        array_unshift($folders, $filesPrefix);
+
+        $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][$cacheKey] = $folders;
+
+        return $folders;
+    }
+
+    /**
+     * Bounded breadth-first directory listing: one non-recursive PROPFIND per directory, down to
+     * `$depthLimit` levels below the base. Returns entries ordered parents-before-children.
+     *
+     * @param string $baseFsPath  WebDAV base path (as produced by str_replace of the display prefix)
+     * @param int    $baseDepth   absolute display-depth of the base ("Files" = 0)
+     * @param int    $depthLimit  number of levels to descend below the base
+     * @param string $filesPrefix localized "Files" display prefix
+     * @return array[] each: ['path' => display path, 'depth' => int, 'has_children' => bool, 'boundary' => bool]
+     */
+    private function list_dirs_bounded($baseFsPath, $baseDepth, $depthLimit, $filesPrefix)
+    {
+        $entries = array(); // keyed by display path (insertion order = parents first)
+
+        // Queue items: [fsPath, level] where level is relative to the base (1 = immediate child).
+        $queue = array(array($baseFsPath, 1));
+
+        while (!empty($queue)) {
+            list($dir, $level) = array_shift($queue);
+            $isBoundary = $level >= $depthLimit;
+
+            $children = $this->filesystem->listContents($dir, false)
+                ->filter(fn (StorageAttributes $attributes) => $attributes->isDir());
+
+            foreach ($children as $child) {
+                // Decoded path: listContents() expects decoded paths (same as action_file_list()).
+                $decoded     = urldecode($child->path());
+                $displayPath = $filesPrefix . '/' . $decoded;
+
+                $entries[$displayPath] = array(
+                    'path'         => $displayPath,
+                    'depth'        => $baseDepth + $level,
+                    'has_children' => $isBoundary, // optimistic for boundary; corrected below otherwise
+                    'boundary'     => $isBoundary,
+                );
+
+                if (!$isBoundary) {
+                    $queue[] = array($decoded, $level + 1);
+                }
+            }
+        }
+
+        // Interior nodes were PROPFIND'd, so we know their child status exactly: a node has children
+        // iff some other discovered entry is its direct child. Boundary nodes keep the optimistic flag.
+        foreach ($entries as $path => $entry) {
+            if ($entry['boundary']) {
+                continue;
+            }
+            $entries[$path]['has_children'] = false;
+        }
+        foreach ($entries as $path => $entry) {
+            $slash = strrpos($path, '/');
+            if ($slash === false) {
+                continue;
+            }
+            $parent = substr($path, 0, $slash);
+            if (isset($entries[$parent])) {
+                $entries[$parent]['has_children'] = true;
+            }
+        }
+
+        return array_values($entries);
     }
 
     /**
