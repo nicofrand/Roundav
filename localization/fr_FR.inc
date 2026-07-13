@@ -11,6 +11,7 @@ $labels['fromcloud'] = 'Depuis le drive...';
 $labels['selectfiles'] = 'Sélectionnez le(s) fichier(s) à attacher..';
 $labels['attachsel'] = 'Pièce jointe sélectionnée';
 $labels['foldercreate'] = 'Nouveau répertoire';
+$labels['createsubfolder'] = 'Créer un sous-dossier';
 $labels['folderinside'] = 'Ajouter à l\'intérieur';
 $labels['foldername'] = 'Nom du répertoire';
 $labels['name'] = 'Nom';
