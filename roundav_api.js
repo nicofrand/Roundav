@@ -21,7 +21,7 @@
  +--------------------------------------------------------------------------+
 */
 
-function files_api()
+function roundav_api()
 {
     var ref = this;
 
@@ -78,7 +78,7 @@ function files_api()
 
         return $.ajax({
             type: 'POST',
-            url: rcmail.url('roundav/file_api'),
+            url: rcmail.url('roundav/roundav_api'),
             data: data,
             dataType: 'json',
             success: function (response) { ref[func](response); },
@@ -98,7 +98,7 @@ function files_api()
 
         return $.ajax({
             type: 'GET',
-            url: rcmail.url('roundav/file_api'),
+            url: rcmail.url('roundav/roundav_api'),
             data: data,
             dataType: 'json',
             success: function (response) { ref[func](response); },
@@ -443,7 +443,7 @@ if (!String.prototype.startsWith) {
 }
 
 // make a string URL safe (and compatible with PHP's rawurlencode())
-function urlencode(str)
+function roundav_urlencode(str)
 {
     if (window.encodeURIComponent) { return encodeURIComponent(str).replace('*', '%2A'); }
 
@@ -454,7 +454,7 @@ function urlencode(str)
         .replace('@', '%40');
 }
 
-function escapeHTML(str)
+function roundav_escapeHTML(str)
 {
     return str === undefined ? '' : String(str)
         .replace(/&/g, '&amp;')
@@ -462,7 +462,7 @@ function escapeHTML(str)
         .replace(/</g, '&lt;');
 }
 
-function object_is_empty(obj)
+function roundav_object_is_empty(obj)
 {
     if (obj) { for (var i in obj) { if (i !== null) { return true; } } }
 

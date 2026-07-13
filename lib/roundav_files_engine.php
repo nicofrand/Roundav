@@ -178,7 +178,7 @@ class roundav_files_engine
         $plugin->include_stylesheet($plugin->local_skin_path().'/style.css');
 
         if (!empty($template)) {
-            $plugin->include_script('file_api.js');
+            $plugin->include_script('roundav_api.js');
             $plugin->include_script('roundav.js');
 
             // register template objects for dialogs (and main interface)
