@@ -59,7 +59,7 @@ class roundav extends rcube_plugin
         $this->register_task('roundav');
 
         $this->register_action('prefs', array($this, 'actions'));
-        $this->register_action('file_api', array($this, 'actions'));
+        $this->register_action('roundav_api', array($this, 'actions'));
 
         $this->add_hook('startup', array($this, 'startup'));
         $this->add_hook('logout', array($this, 'onlogout'));
@@ -146,7 +146,7 @@ class roundav extends rcube_plugin
             $rcTask = $rc->task;
             $rcAction = $rc->action;
 
-            if ($rcTask == 'roundav' && $rcAction == 'file_api') {
+            if ($rcTask == 'roundav' && $rcAction == 'roundav_api') {
                 $action = rcube_utils::get_input_value('method', rcube_utils::INPUT_GPC);
             }
             else if ($rcTask == 'roundav' && $rcAction) {
