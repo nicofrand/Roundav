@@ -13,8 +13,6 @@ class roundav_files_engine
 
     private $sort_cols = array('name', 'mtime', 'size');
 
-    private $file_data = [];
-
     /**
      *
      * @var Filesystem
@@ -175,20 +173,6 @@ class roundav_files_engine
                 'folderauthtitle', 'authenticating',
                 'refreshfolderslist'
             );
-        }
-        else if ($plugin->rc->task == 'roundav' && $plugin->rc->config->get('show_drive_task', true)) {
-            $template = 'files';
-        }
-
-        // add taskbar button
-        if (empty($_REQUEST['framed']) && $plugin->rc->config->get('show_drive_task', true)) {
-            $plugin->add_button(array(
-                'command'    => 'roundav',
-                'class'      => 'button-files',
-                'classsel'   => 'button-files button-selected',
-                'innerclass' => 'button-inner',
-                'label'      => 'roundav.files',
-                ), 'taskbar');
         }
 
         $plugin->include_stylesheet($plugin->local_skin_path().'/style.css');
@@ -597,60 +581,6 @@ class roundav_files_engine
     }
 
     /**
-     * Template object for file info box
-     */
-    public function file_info_box($attrib)
-    {
-        $table = new html_table(array('cols' => 2, 'class' => $attrib['class']));
-
-        // file name
-        $table->add('label', $this->plugin->gettext('name').':');
-        $table->add('data filename', $this->file_data['name']);
-
-        // file type
-        // @TODO: human-readable type name
-        $table->add('label', $this->plugin->gettext('type').':');
-        $table->add('data filetype', $this->file_data['type']);
-
-        // file size
-        $table->add('label', $this->plugin->gettext('size').':');
-        $table->add('data filesize', $this->plugin->rc->show_bytes($this->file_data['size']));
-
-        // file modification time
-        $table->add('label', $this->plugin->gettext('mtime').':');
-        $table->add('data filemtime', $this->file_data['mtime']);
-
-        // @TODO: for images: width, height, color depth, etc.
-        // @TODO: for text files: count of characters, lines, words
-
-        return $table->show();
-    }
-
-    /**
-     * Template object for file preview frame
-     */
-    public function file_preview_frame($attrib)
-    {
-        if (empty($attrib['id'])) {
-            $attrib['id'] = 'filepreviewframe';
-        }
-
-        if ($frame = $this->file_data['viewer']['frame']) {
-            return $frame;
-        }
-
-        $href = $this->plugin->rc->url(array('task' => 'roundav', 'action' => 'file_api')) . '&method=file_get&file='. urlencode($this->file_data['filename']);
-
-        $this->plugin->rc->output->add_gui_object('preview_frame', $attrib['id']);
-
-        $attrib['allowfullscreen'] = true;
-        $attrib['src']             = $href;
-        $attrib['onload']          = 'roundav_frame_load(this)';
-
-        return html::iframe($attrib);
-    }
-
-    /**
      * Template object for quota display
      */
     public function quota_display($attrib)
@@ -672,33 +602,6 @@ class roundav_files_engine
         $this->plugin->rc->output->add_script(rcmail_output::JS_OBJECT_NAME . ".files_set_quota($quota);", 'docready');
 
         return html::span($attrib, '');
-    }
-
-    /**
-     * Handler for main files interface (Files task)
-     */
-    public function action_index($plugin)
-    {
-        $plugin->add_texts('localization/');
-
-        $plugin->add_label(
-            'folderdeleting', 'folderdeleteconfirm', 'folderdeletenotice',
-            'uploading', 'attaching', 'uploadsizeerror',
-            'filedeleting', 'filedeletenotice', 'filedeleteconfirm',
-            'filemoving', 'filemovenotice', 'filemoveconfirm', 'filecopying', 'filecopynotice',
-            'collection_audio', 'collection_video', 'collection_image', 'collection_document',
-            'fileskip', 'fileskipall', 'fileoverwrite', 'fileoverwriteall',
-            'refreshfolderslist'
-        );
-
-        $plugin->add_label('uploadprogress', 'GB', 'MB', 'KB', 'B');
-        $plugin->rc->output->set_pagetitle($plugin->gettext('files'));
-        $plugin->rc->output->set_env('file_mimetypes', $this->get_mimetypes());
-        $plugin->rc->output->set_env('files_quota', $_SESSION['roundav_caps']['QUOTA']);
-        $plugin->rc->output->set_env('files_max_upload', $_SESSION['roundav_caps']['MAX_UPLOAD']);
-        $plugin->rc->output->set_env('files_progress_name', $_SESSION['roundav_caps']['PROGRESS_NAME']);
-        $plugin->rc->output->set_env('files_progress_time', $_SESSION['roundav_caps']['PROGRESS_TIME']);
-        $plugin->rc->output->send('roundav.files');
     }
 
     /**
@@ -739,48 +642,6 @@ class roundav_files_engine
         }
 
         $plugin->rc->output->send();
-    }
-
-    /**
-     * Handler for file open action
-     */
-    public function action_open($plugin)
-    {
-        $plugin->add_texts('localization/');
-
-        $file = urldecode(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
-        $filesPrefix = $plugin->gettext('files');
-        $file = ltrim(substr($file, strlen($filesPrefix)), '/');
-
-        try {
-          $this->file_data['type'] = $this->filesystem->mimeType($file);
-          $this->file_data['size'] = $this->filesystem->fileSize($file);
-          $this->file_data['mtime'] = $this->filesystem->lastModified($file);
-        }
-        catch (Exception $e) {
-          rcube::raise_error(array(
-                  'code' => 500, 'type' => 'php', 'line' => __LINE__, 'file' => __FILE__,
-                  'message' => $e->getMessage()),
-              true, true);
-        }
-
-
-        $this->file_data['filename'] = urldecode(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET));
-
-        $plugin->add_label('filedeleteconfirm', 'filedeleting', 'filedeletenotice');
-
-        // register template objects for dialogs (and main interface)
-        $plugin->rc->output->add_handlers(array(
-            'fileinfobox'      => array($this, 'file_info_box'),
-            'filepreviewframe' => array($this, 'file_preview_frame'),
-        ));
-
-        // this one is for styling purpose
-        $plugin->rc->output->set_env('extwin', true);
-        $plugin->rc->output->set_env('file', $file);
-        $plugin->rc->output->set_env('file_data', $this->file_data);
-        $plugin->rc->output->set_pagetitle(rcube::Q($file));
-        $plugin->rc->output->send('roundav.filepreview');
     }
 
     /**

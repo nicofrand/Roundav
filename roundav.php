@@ -58,9 +58,7 @@ class roundav extends rcube_plugin
 
         $this->register_task('roundav');
 
-        $this->register_action('index', array($this, 'actions'));
         $this->register_action('prefs', array($this, 'actions'));
-        $this->register_action('open',  array($this, 'actions'));
         $this->register_action('file_api', array($this, 'actions'));
 
         $this->add_hook('startup', array($this, 'startup'));
@@ -163,14 +161,6 @@ class roundav extends rcube_plugin
 
             switch ($action)
             {
-                case 'index':
-                    $this->engine->action_index($this);
-                    break;
-
-                case 'open';
-                    $this->engine->action_open($this);
-                    break;
-
                 case 'save_file';
                     $this->engine->action_save_file($this);
                     break;

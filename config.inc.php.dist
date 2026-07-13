@@ -5,9 +5,6 @@
 // to the 'dont_override' list in Roundcube's main config.inc.php, e.g.:
 //   $config['dont_override'] = ['driver_webdav_url', 'driver_webdav_prefix'];
 
-// Show the "Cloud Storage" entry in the task bar.
-$config['show_drive_task'] = true;
-
 // WebDAV server base URL (e.g. https://cloud.example.com/remote.php/dav/files/USERNAME/).
 // Leave unset to require users to configure it themselves.
 $config['driver_webdav_url'] = null;
