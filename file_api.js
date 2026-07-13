@@ -175,79 +175,71 @@ function files_api()
     /** *******             Helpers                   *********/
     /*********************************************************/
 
-    // Folder list parser, converts it into structure
-    this.folder_list_parse = function (list, num)
+    // Folder list parser. Converts the backend's structured folder entries
+    // ([{path, depth, has_children, boundary}, …]) into a map keyed by full display path.
+    // Entries are enriched with a unique DOM id and lazy-tree bookkeeping. The returned map
+    // is meant to be merged into env.folders (never wholesale-replaced during lazy expansion).
+    this.folder_list_parse = function (folders)
     {
-        var i, n, items, items_len, f, tmp, folder,
-            len = list ? list.length : 0, folders = {};
+        var i, entry, sep = this.env.directory_separator, slash, map = {};
 
-        if (!num) { num = 1; }
+        if (!this.env.folder_seq) { this.env.folder_seq = 1; }
+        if (!folders || !folders.length) { return map; }
 
-        for (i = 0; i < len; i++) {
-            folder = list[i];
-            items = folder.split(this.env.directory_separator);
-            items_len = items.length;
+        for (i = 0; i < folders.length; i++) {
+            entry = folders[i];
+            slash = entry.path.lastIndexOf(sep);
 
-            for (n = 0; n < items_len - 1; n++) {
-                tmp = items.slice(0, n + 1);
-                f = tmp.join(this.env.directory_separator);
-                if (!folders[f]) { folders[f] = {
-                    name: tmp.pop(), depth: n, id: 'f' + num++, virtual: 1,
-                }; }
-            }
-
-            folders[folder] = { name: items.pop(), depth: items_len - 1, id: 'f' + num++ };
+            map[entry.path] = {
+                name: entry.path.split(sep).pop(),
+                path: entry.path,
+                depth: entry.depth,
+                id: 'f' + (this.env.folder_seq++),
+                has_children: !!entry.has_children,
+                boundary: !!entry.boundary,
+                parent: slash > 0 ? entry.path.substring(0, slash) : null,
+                loaded: false,
+                expanded: false,
+            };
         }
 
-        return folders;
+        return map;
     };
 
-    // folder structure presentation (structure icons)
-    this.folder_list_tree = function (folders)
+    // Fetch the complete (recursive) list of folder display-paths, used by search / collections
+    // which must scan the whole tree. Result is cached in env.all_folders. `callback` receives
+    // the flat string array. Concurrent callers queue behind a single in-flight request so no
+    // callback is dropped.
+    this.folder_list_all = function (callback, forceRefresh)
     {
-        var i, n, diff, tree = [], folder;
-
-        for (i in folders) {
-            items = i.split(this.env.directory_separator);
-            items_len = items.length;
-
-            // skip root
-            if (items_len < 2) {
-                tree = [];
-                continue;
-            }
-
-            folders[i].tree = [1];
-
-            for (n = 0; n < tree.length; n++) {
-                folder = tree[n];
-                diff = folders[folder].depth - (items_len - 1);
-                if (diff >= 0) { folders[folder].tree[diff] = folders[folder].tree[diff] ? folders[folder].tree[diff] + 2 : 2; }
-            }
-
-            tree.push(i);
+        if (!forceRefresh && this.env.all_folders) {
+            if (callback) { callback(this.env.all_folders); }
+            return;
         }
 
-        for (i in folders) {
-            if (tree = folders[i].tree) {
-                var html = '', divs = [];
-                for (n = 0; n < folders[i].depth; n++) {
-                    if (tree[n] > 2) { divs.push({ class: 'l3', width: 1 }); }
-                    else if (tree[n] > 1) { divs.push({ class: 'l2', width: 1 }); }
-                    else if (tree[n] > 0) { divs.push({ class: 'l1', width: 1 }); }
-                    // separator
-                    else if (divs.length && !divs[divs.length - 1].class) { divs[divs.length - 1].width++; }
-                    else { divs.push({ class: null, width: 15 }); }
-                }
+        if (!this.env.all_folders_callbacks) { this.env.all_folders_callbacks = []; }
+        if (callback) { this.env.all_folders_callbacks.push(callback); }
 
-                for (n = divs.length - 1; n >= 0; n--) {
-                    if (divs[n].class) { html += '<span class="tree ' + divs[n].class + '" />'; }
-                    else { html += '<span style="width:' + divs[n].width + 'em" />'; }
-                }
+        // A request is already in flight; it will invoke every queued callback on completion.
+        if (this.all_folders_req) { return; }
 
-                if (html) { $('#' + folders[i].id + ' span.branch').html(html); }
-            }
-        }
+        this.all_folders_req = this.set_busy(true, 'loading');
+        this.request('folder_list', { flat: true, force_refresh: forceRefresh === true }, 'folder_list_all_response');
+    };
+
+    this.folder_list_all_response = function (response)
+    {
+        var callbacks = this.env.all_folders_callbacks || [], res;
+        this.env.all_folders_callbacks = [];
+
+        if (this.all_folders_req) { rcmail.hide_message(this.all_folders_req); this.all_folders_req = null; }
+
+        if (!this.response(response)) { return; }
+
+        res = response.result;
+        this.env.all_folders = res && res.folders ? res.folders : (res || []);
+
+        $.each(callbacks, function (i, cb) { cb(ref.env.all_folders); });
     };
 
     // convert content-type string into class name

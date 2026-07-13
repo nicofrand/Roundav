@@ -98,6 +98,7 @@ function roundav_init()
         search_threads: rcmail.env.search_threads,
         resources_dir: rcmail.assets_path('program/resources'),
         supported_mimetypes: rcmail.env.file_mimetypes,
+        expanding: {}, // paths with a lazy-expand request currently in flight
     });
 
     file_api.translations = rcmail.labels;
@@ -271,6 +272,24 @@ function roundav_attach_menu_open(p)
     });
 }
 
+// Builds <option> elements for a parent-folder <select>, indented by depth.
+// `all` is the flat list of folder display-paths from file_api.folder_list_all().
+function roundav_folder_options(all, sep)
+{
+    var options = [];
+
+    $.each(all, function (idx, path) {
+        var parts = path.split(sep), depth = parts.length - 1,
+            n, name = escapeHTML(parts.pop());
+
+        for (n = 0; n < depth; n++) { name = '&nbsp;&nbsp;&nbsp;' + name; }
+
+        options.push($('<option>').val(path).html(name));
+    });
+
+    return options;
+}
+
 // folder creation dialog
 function roundav_folder_create_dialog()
 {
@@ -306,16 +325,15 @@ function roundav_folder_create_dialog()
     // Fix submitting form with Enter
     $('form', dialog).submit(roundav_dialog_submit_handler);
 
-    // build parent selector
+    // build parent selector from the complete folder list (the lazy tree is only partial)
     select.append($('<option>').val('').text('---'));
-    $.each(file_api.env.folders, function (i, f) {
-        var n, option = $('<option>'), name = escapeHTML(f.name);
+    var loadingOpt = $('<option>').prop('disabled', true).text(rcmail.gettext('loading'));
+    select.append(loadingOpt);
 
-        for (n = 0; n < f.depth; n++) { name = '&nbsp;&nbsp;&nbsp;' + name; }
-
-        option.val(i).html(name).appendTo(select);
-
-        if (i == file_api.env.folder) { option.attr('selected', true); }
+    file_api.folder_list_all(function (all) {
+        loadingOpt.remove();
+        select.append(roundav_folder_options(all, file_api.env.directory_separator));
+        if (file_api.env.folder) { select.val(file_api.env.folder); }
     });
 }
 
@@ -358,17 +376,15 @@ function roundav_folder_edit_dialog()
     // Fix submitting form with Enter
     $('form', dialog).submit(roundav_dialog_submit_handler);
 
-    // build parent selector
+    // build parent selector from the complete folder list (the lazy tree is only partial)
     options.push($('<option>').val('').text('---'));
-    $.each(file_api.env.folders, function (i, f) {
-        var n, name = escapeHTML(f.name);
+    var loadingOpt = $('<option>').prop('disabled', true).text(rcmail.gettext('loading'));
+    select.append(options).append(loadingOpt);
 
-        for (n = 0; n < f.depth; n++) { name = '&nbsp;&nbsp;&nbsp;' + name; }
-
-        options.push($('<option>').val(i).html(name));
+    file_api.folder_list_all(function (all) {
+        loadingOpt.remove();
+        select.append(roundav_folder_options(all, file_api.env.directory_separator)).val(path);
     });
-
-    select.append(options).val(path);
 }
 
 // folder mounting dialog
@@ -728,10 +744,26 @@ function roundav_ui()
 
     this.http_error = function (request, status, err)
     {
+        var self = this;
         var elem = this._get_folder_list_element();
         if (elem.children('p.loading').length) {
             elem.empty();
         }
+
+        // Roll back any folders whose lazy-expand request is in flight. A transport-level
+        // failure never reaches folder_expand_response, so this is the only place that
+        // clears env.expanding (the in-flight guard) for that case. Driven directly from
+        // env.expanding rather than a DOM class, since that's the actual source of truth.
+        Object.keys(this.env.expanding || {}).forEach(function (path) {
+            var f = self.env.folders[path];
+            if (f) {
+                var el = self._folder_element(f);
+                el.children('ul.subfolders').children('li.loading').remove();
+                el.removeClass('expanded').addClass('collapsed');
+            }
+            delete self.env.expanding[path];
+        });
+
         rcmail.http_error(request, status, err, this.req);
     };
 
@@ -756,6 +788,10 @@ function roundav_ui()
         // Prefer displaying it in the modal directly.
         var elem = this._get_folder_list_element();
         elem.html('<p class="loading"><span>Loading folders…</span></p>');
+
+        // A full (re)load invalidates the cached flat list used by search/collections.
+        this.env.all_folders = null;
+
         this.request('folder_list', {
             force_refresh: forceRefresh === true
         }, 'folder_list_response');
@@ -776,12 +812,24 @@ function roundav_ui()
         var first;
         var list = $('<ul class="listing"></ul>');
         var collections = !rcmail.env.action.match(/^(preview|show)$/) ? ['audio', 'video', 'image', 'document'] : [];
+        var result = response.result || {};
 
-        this.env.folders = this.folder_list_parse(response.result && response.result.list ? response.result.list : response.result);
+        // Fresh (root) load: reset the folders map and the id sequence.
+        this.env.folder_seq = 1;
+        this.env.folders = this.folder_list_parse(result.folders || result);
 
-        $.each(this.env.folders, function (i, f) {
-            list.append(file_api.folder_list_row(i, f));
-            if (!first) { first = i; }
+        // Build a genuinely nested tree: append each folder into its parent's <ul.subfolders>.
+        // Backend returns parents before children, so a single ordered pass is enough.
+        $.each(this.env.folders, function (path, f) {
+            var row = file_api.folder_list_row(path, f);
+
+            if (f.parent && file_api.env.folders[f.parent]) {
+                $('#' + file_api.env.folders[f.parent].id + ' > ul.subfolders', list).append(row);
+            }
+            else {
+                list.append(row);
+                if (!first) { first = path; }
+            }
         });
 
         // add virtual collections
@@ -797,21 +845,43 @@ function roundav_ui()
 
         elem.html(list);
 
-        // select first folder?
-        if (this.env.folder) { this.folder_select(this.env.folder); }
+        // Expand the top level by default (or restore a previously-open state after a reload).
+        this.folder_restore_expanded(first);
+
+        // Select the previously-selected folder if it is present in the loaded subtree,
+        // otherwise fall back to the first folder.
+        if (this.env.folder && this.env.folders[this.env.folder]) { this.folder_select(this.env.folder); }
         else if (this.env.collection) { this.folder_select(this.env.collection, true); }
         else if (first) { this.folder_select(first); }
-
-        // add tree icons
-        this.folder_list_tree(this.env.folders);
 
         // handle authentication errors on external sources
         this.folder_list_auth_errors(response.result);
     };
 
+    // Expand the root node by default; on a reload, re-open branches that were open before
+    // and still fit within the freshly-loaded subtree (pure CSS, no extra requests).
+    this.folder_restore_expanded = function (rootPath)
+    {
+        var self = this, saved = this.env.expanded_paths || {};
+
+        if (rootPath && this.env.folders[rootPath]) {
+            this.folder_set_expanded(this.env.folders[rootPath], true);
+        }
+
+        Object.keys(saved).sort(function (a, b) { return a.length - b.length; }).forEach(function (p) {
+            var f = self.env.folders[p];
+            if (f && f.has_children && (f.loaded || !f.boundary)) {
+                self.folder_set_expanded(f, true);
+            }
+        });
+    };
+
     this.folder_select = function (folder, is_collection)
     {
         if (rcmail.busy) { return; }
+
+        // Guard: the selected folder may sit below the loaded subtree after a reload.
+        if (!is_collection && !this.env.folders[folder]) { return; }
 
         var list = this._get_folder_list_element().children('ul');
 
@@ -850,35 +920,177 @@ function roundav_ui()
     this.folder_list_row = function (i, folder)
     {
         var rowClasses = ["mailbox"];
-        if (folder.depth) {
-            rowClasses.push("child");
-        }
-
-        if (folder.virtual) {
-            rowClasses.push("virtual");
+        if (folder.has_children) {
+            rowClasses.push("has-children", "collapsed");
         }
 
         var row = $(`<li id="${folder.id}" class="${rowClasses.join(" ")}">
-            <span class="branch" ${folder.depth ? `style="width: ${folder.depth}em"` : ""}></span>
-            <span class="name">${folder.name}</span>
+            <span class="toggle"></span>
+            <span class="name">${escapeHTML(folder.name)}</span>
         </li>`);
 
         row.data('folder', i);
 
-        if (!folder.virtual)
-        {
-            row.attr('tabindex', 0)
-                .keypress(function (e) { if (e.which == 13 || e.which == 32) { file_api.folder_select(i); } })
-                .click(function () { file_api.folder_select(i); })
-                .mouseenter(function () {
-                    if (rcmail.file_list && rcmail.file_list.drag_active && !$(this).hasClass('selected')) { $(this).addClass('droptarget'); }
-                })
-                .mouseleave(function () {
-                    if (rcmail.file_list && rcmail.file_list.drag_active) { $(this).removeClass('droptarget'); }
-                });
+        // Container for collapsible / lazily-loaded children.
+        if (folder.has_children) {
+            $('<ul class="subfolders" style="display:none"></ul>').appendTo(row);
         }
 
+        // The toggle arrow expands/collapses (and lazy-loads) without selecting the folder.
+        $('span.toggle', row).click(function (e) {
+            e.stopPropagation();
+            file_api.folder_toggle(i);
+        });
+
+        // Clicking the name selects the folder (loads its files).
+        $('span.name', row).attr('tabindex', 0)
+            .keypress(function (e) { if (e.which == 13 || e.which == 32) { file_api.folder_select(i); } })
+            .click(function () { file_api.folder_select(i); })
+            .mouseenter(function () {
+                if (rcmail.file_list && rcmail.file_list.drag_active && !row.hasClass('selected')) { row.addClass('droptarget'); }
+            })
+            .mouseleave(function () {
+                if (rcmail.file_list && rcmail.file_list.drag_active) { row.removeClass('droptarget'); }
+            });
+
         return row;
+    };
+
+    // Resolve a folder's <li> element, checking the parent window for framed dialogs.
+    this._folder_element = function (f)
+    {
+        var el = $('#' + f.id);
+        if (!el.length && window.parent && parent.rcmail) {
+            el = $('#' + f.id, window.parent.document.body);
+        }
+        return el;
+    };
+
+    // Track which folders are open so the tree can be restored after a reload.
+    this._track_expanded = function (path, expanded)
+    {
+        if (!this.env.expanded_paths) { this.env.expanded_paths = {}; }
+        if (expanded) { this.env.expanded_paths[path] = true; }
+        else { delete this.env.expanded_paths[path]; }
+    };
+
+    // Show/hide a folder's children (pure CSS, no request).
+    this.folder_set_expanded = function (f, expanded)
+    {
+        var el = this._folder_element(f), ul = el.children('ul.subfolders');
+
+        if (expanded) {
+            ul.show();
+            el.removeClass('collapsed').addClass('expanded');
+        }
+        else {
+            ul.hide();
+            el.removeClass('expanded').addClass('collapsed');
+        }
+
+        f.expanded = expanded;
+        this._track_expanded(f.path, expanded);
+    };
+
+    // Toggle a folder open/closed, lazy-loading the next batch when a boundary node is opened.
+    this.folder_toggle = function (path)
+    {
+        var f = this.env.folders[path];
+        if (!f || !f.has_children) { return; }
+
+        if (f.expanded) {
+            this.folder_set_expanded(f, false);
+        }
+        else if (f.loaded || !f.boundary) {
+            // Children are already in the DOM (loaded within the current batch) -> just show them.
+            this.folder_set_expanded(f, true);
+        }
+        else if (!this.env.expanding[path]) {
+            // Boundary node: fetch the next batch of levels (unless already in flight).
+            this.folder_expand(f);
+        }
+    };
+
+    // Lazily fetch the subtree below a boundary folder, showing a per-node spinner.
+    this.folder_expand = function (f)
+    {
+        var el = this._folder_element(f), ul = el.children('ul.subfolders');
+
+        this.env.expanding[f.path] = true;
+
+        // The spinner li inside ul.subfolders is the loading indicator; the row itself
+        // just needs to be marked expanded.
+        ul.html('<li class="loading"><span></span></li>').show();
+        el.removeClass('collapsed').addClass('expanded');
+
+        // The response always carries `result.base` (even on error), so concurrent
+        // expansions of different folders stay independent. No `depth` is sent — the
+        // server-side default (lib/roundav_files_engine.php) is the single source of
+        // truth for the batch size, so every request path stays in sync with it.
+        this.request('folder_list', { folder: f.path }, 'folder_expand_response');
+    };
+
+    // Handler for a lazy expand: graft the returned subtree into the target node.
+    this.folder_expand_response = function (response)
+    {
+        var res = response && response.result ? response.result : {};
+        var f = res.base ? this.env.folders[res.base] : null;
+        var el = f ? this._folder_element(f) : $();
+        var ul = el.children('ul.subfolders');
+
+        if (res.base) { delete this.env.expanding[res.base]; }
+
+        // Remove the per-node spinner.
+        ul.children('li.loading').remove();
+
+        if (!this.response(response)) {
+            if (f) { this.folder_set_expanded(f, false); }
+            return;
+        }
+
+        if (!f) { return; }
+
+        var entries = res.folders || [];
+
+        // Boundary folder that turned out to be empty -> demote to a leaf.
+        if (!entries.length) {
+            f.has_children = false;
+            f.loaded = true;
+            el.removeClass('has-children expanded collapsed');
+            $('> span.toggle', el).remove();
+            ul.remove();
+            this._track_expanded(f.path, false);
+            return;
+        }
+
+        var added = this.folder_list_parse(entries);
+        $.extend(this.env.folders, added);
+        this._graft_folders(added);
+
+        f.loaded = true;
+        this.folder_set_expanded(f, true);
+    };
+
+    // Append freshly-parsed folder rows into their parents' subfolder containers (in the live DOM).
+    // Container lookups are cached by parent path since a batch typically shares one parent.
+    this._graft_folders = function (folders)
+    {
+        var self = this, containers = {};
+
+        function container_for(f) {
+            var key = f.parent || '';
+            if (!containers[key]) {
+                var parent = f.parent ? self.env.folders[f.parent] : null;
+                containers[key] = parent
+                    ? self._folder_element(parent).children('ul.subfolders')
+                    : self._get_folder_list_element().children('ul.listing');
+            }
+            return containers[key];
+        }
+
+        $.each(folders, function (path, f) {
+            container_for(f).append(self.folder_list_row(path, f));
+        });
     };
 
     // folder create request
@@ -1041,7 +1253,14 @@ function roundav_ui()
     };
 
     // call file_list request for every folder (used for search and virt. collections)
+    // Fetches the COMPLETE folder list first (lazy tree only knows the expanded subset).
     this.file_list_loop = function (params)
+    {
+        var self = this;
+        this.folder_list_all(function (all) { self._file_list_loop_run(params, all); });
+    };
+
+    this._file_list_loop_run = function (params, all)
     {
         var i, folders = [], limit = Math.max(this.env.search_threads || 1, 1);
 
@@ -1053,9 +1272,7 @@ function roundav_ui()
 
         delete params.all_folders;
 
-        $.each(this.env.folders, function (i, f) {
-            if (!f.virtual) { folders.push(i); }
-        });
+        $.each(all || [], function (idx, path) { folders.push(path); });
 
         this.env.folders_loop = folders;
         this.env.folders_loop_params = params;
@@ -1748,14 +1965,7 @@ function roundav_ui()
     {
         if (!this.response(response)) { return; }
 
-        var cnt = 0, folders,
-            folder = response.result.folder,
-            parent = $('#' + this.env.folders[folder].id);
-
-        // try parent window if the folder element does not exist
-        if (!parent.length && window.parent && window.parent.rcmail) {
-            parent = $('#' + this.env.folders[folder].id, window.parent.document.body);
-        }
+        var folder = response.result.folder;
 
         delete this.auth_errors[folder];
         roundav_dialog_close(this.open_dialog);
@@ -1763,24 +1973,8 @@ function roundav_ui()
         // go to the next one
         this.folder_list_auth_errors();
 
-        // count folders on the list
-        $.each(this.env.folders, function () { cnt++; });
-
-        // parse result
-        folders = this.folder_list_parse(response.result.list, cnt);
-        delete folders[folder]; // remove root added in folder_list_parse()
-
-        // add folders from the external source to the list
-        $.each(folders, function (i, f) {
-            var row = file_api.folder_list_row(i, f);
-            parent.after(row);
-            parent = row;
-        });
-
-        // add tree icons
-        this.folder_list_tree(folders);
-
-        $.extend(this.env.folders, folders);
+        // reload the tree so the freshly-authenticated source appears
+        this.folder_list(true);
     };
 
     // returns content of the external storage authentication form
