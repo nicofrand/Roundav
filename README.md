@@ -1,10 +1,8 @@
 # Roundav
 
-This plugin is a fork of [Roundcube-Plugin-roundav](https://github.com/messagerie-melanie2/Roundcube-Plugin-roundav), itself “largely inspired by the plugin kolab_file”.
+This plugin is a fork of [Roundcube-Plugin-Roundrive](https://github.com/messagerie-melanie2/Roundcube-Plugin-Roundrive), itself “largely inspired by the plugin kolab_file”.
 
-It can be used to connect to a WebDAV storage (like Nextcloud) from Roundcube to save attachments to the WebDAV storage or insert attachments from it..
-
-> **/!\ WARNING**: This is an alpha version, don't use it in production unless you are absolutely sure of what you do
+It can be used to connect to a WebDAV storage (like Nextcloud) from Roundcube to save attachments to the WebDAV storage or insert attachments from it...
 
 License
 -------
