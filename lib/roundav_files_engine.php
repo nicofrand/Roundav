@@ -810,14 +810,10 @@ class roundav_files_engine
                 'group' => $COMPOSE_ID,
             );
 
-            $attachment = $plugin->rc->plugins->exec_hook('attachment_save', $attachment);
-
-            if ($attachment['status'] && !$attachment['abort']) {
+            if ($plugin->rc->insert_uploaded_file($attachment, 'attachment_save')) {
                 $id = $attachment['id'];
 
-                // store new attachment in session
                 unset($attachment['data'], $attachment['status'], $attachment['abort']);
-                $COMPOSE['attachments'][$id] = $attachment;
 
                 if ((isset($COMPOSE['deleteicon']) && $icon = $COMPOSE['deleteicon']) && is_file($icon)) {
                     $button = html::img(array(
