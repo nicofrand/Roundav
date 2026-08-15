@@ -14,6 +14,12 @@ class roundav_files_engine
     private $sort_cols = array('name', 'mtime', 'size');
 
     /**
+     * Bump when the shape *or the ordering* of the cached folder lists changes, so sessions
+     * created by an older plugin version never serve stale (unsorted) data.
+     */
+    private const FOLDER_CACHE_VERSION = 2;
+
+    /**
      *
      * @var Filesystem
      */
@@ -57,6 +63,85 @@ class roundav_files_engine
         $result['reason'] = 'not_configured';
         echo json_encode($result);
         exit();
+    }
+
+    /**
+     * Ranks a set of plain names (single path segments, no separator) using Roundcube's own
+     * folder comparator — rcube_imap::sort_folder_comparator(), reached through the public
+     * sort_folder_list() — so files and folders order exactly like the mailbox list does.
+     *
+     * That comparator is locale-aware but *case-sensitive* ("Zulu" before "alpha"), which is
+     * accepted here on purpose: matching the rest of the UI beats inventing a second ordering.
+     *
+     * Ranking up front rather than comparing pairwise keeps it to one call per listing instead
+     * of one per comparison.
+     *
+     * @param string[] $names
+     *
+     * @return array<string,int> name => rank
+     */
+    private function name_ranks(array $names)
+    {
+        // sort_folder_list() keys its working array by name, so duplicates would collapse.
+        // Make that explicit so the returned map still covers every input name.
+        $names = array_values(array_unique($names));
+
+        // sort_folder_comparator() explode()s on the IMAP hierarchy delimiter, which the
+        // rcube_imap constructor only knows from the session. Without it that explode() would
+        // fail, so fall back to the plain locale compare the comparator itself degrades to.
+        if (empty($_SESSION['imap_delimiter'])) {
+            usort($names, 'strcoll');
+        }
+        else {
+            // skip_special: these are not mailboxes, so no INBOX/namespace re-ordering.
+            $names = $this->plugin->rc->get_storage()->sort_folder_list($names, true);
+        }
+
+        return array_flip($names);
+    }
+
+    /**
+     * Orders a list of full display paths. Ranks every distinct segment with name_ranks(), then
+     * compares segment by segment so a folder always sorts immediately before its own
+     * descendants: a naive sort() would place "Files/a-b" between "Files/a" and "Files/a/b"
+     * ('-' 0x2D < '/' 0x2F), which breaks the indentation-by-depth rendering in
+     * roundav_folder_options() (roundav.js). Splitting here rather than letting the comparator
+     * do it also keeps the result independent of the IMAP hierarchy delimiter.
+     *
+     * @param string[] $paths
+     *
+     * @return string[]
+     */
+    private function sort_paths(array $paths)
+    {
+        $split    = array();
+        $segments = array();
+
+        foreach ($paths as $path) {
+            $split[$path] = explode('/', $path);
+            foreach ($split[$path] as $segment) {
+                $segments[] = $segment;
+            }
+        }
+
+        $ranks = $this->name_ranks($segments);
+
+        usort($paths, function ($a, $b) use ($split, $ranks) {
+            $pa = $split[$a];
+            $pb = $split[$b];
+            $n  = min(count($pa), count($pb));
+
+            for ($i = 0; $i < $n; $i++) {
+                if ($pa[$i] !== $pb[$i]) {
+                    return $ranks[$pa[$i]] <=> $ranks[$pb[$i]];
+                }
+            }
+
+            // One path is a prefix of the other: the shorter (the ancestor) comes first.
+            return count($pa) <=> count($pb);
+        });
+
+        return $paths;
     }
 
     /**
@@ -918,8 +1003,9 @@ class roundav_files_engine
             : '/' . ltrim(substr($folderParam, strlen($filesPrefix) + 1), '/');
         $baseDepth  = $folderParam === $filesPrefix ? 0 : count(explode('/', $folderParam)) - 1;
         // Cache key includes depth so a subtree cached at one depth is never served back for a
-        // request asking for a different depth.
-        $baseKey    = $folderParam . '@' . $depth;
+        // request asking for a different depth, and a version so sessions predating a change
+        // in shape/ordering never serve stale data.
+        $baseKey    = $folderParam . '@' . $depth . '@v' . self::FOLDER_CACHE_VERSION;
 
         // Always present, even on error, so the client can identify which folder a response
         // (success or failure) belongs to.
@@ -966,7 +1052,7 @@ class roundav_files_engine
      */
     private function flat_folder_list($plugin, $filesPrefix)
     {
-        $cacheKey = '__flat__';
+        $cacheKey = '__flat__@v' . self::FOLDER_CACHE_VERSION;
 
         if (isset($_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][$cacheKey])) {
             return $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][$cacheKey];
@@ -977,6 +1063,10 @@ class roundav_files_engine
             ->map(fn (StorageAttributes $attributes) => $filesPrefix . '/' . urldecode($attributes->path()))
             ->toArray();
 
+        $folders = $this->sort_paths($folders);
+
+        // Root stays first. Every other entry is "<prefix>/…" so it would sort first anyway,
+        // but unshifting after the sort makes that independent of the comparator.
         array_unshift($folders, $filesPrefix);
 
         $_SESSION[$plugin::SESSION_FOLDERS_LIST_ID][$cacheKey] = $folders;
@@ -1008,10 +1098,21 @@ class roundav_files_engine
             $children = $this->filesystem->listContents($dir, false)
                 ->filter(fn (StorageAttributes $attributes) => $attributes->isDir());
 
+            // Decode once up front: listContents() hands back URL-encoded paths but expects
+            // decoded ones (same as action_file_list()), and sorting needs the decoded names.
+            $decoded = array();
             foreach ($children as $child) {
-                // Decoded path: listContents() expects decoded paths (same as action_file_list()).
-                $decoded     = urldecode($child->path());
-                $displayPath = $filesPrefix . '/' . $decoded;
+                $decoded[] = urldecode($child->path());
+            }
+
+            // Sorting each batch is enough: the BFS is level-order (so parents still come
+            // before children) and the client appends every row into its own parent's
+            // <ul.subfolders>, so only the order *within* one listContents() call is visible.
+            $ranks = $this->name_ranks(array_map('basename', $decoded));
+            usort($decoded, fn ($a, $b) => $ranks[basename($a)] <=> $ranks[basename($b)]);
+
+            foreach ($decoded as $path) {
+                $displayPath = $filesPrefix . '/' . $path;
 
                 $entries[$displayPath] = array(
                     'path'         => $displayPath,
@@ -1021,7 +1122,7 @@ class roundav_files_engine
                 );
 
                 if (!$isBoundary) {
-                    $queue[] = array($decoded, $level + 1);
+                    $queue[] = array($path, $level + 1);
                 }
             }
         }
@@ -1120,6 +1221,40 @@ class roundav_files_engine
                     'mtime' => $fsfile['lastModified'],
                 ];
             }
+
+            $sort    = rcube_utils::get_input_value('sort', rcube_utils::INPUT_GET);
+            $reverse = rcube_utils::get_input_value('reverse', rcube_utils::INPUT_GET) === 'true';
+
+            // Unknown / missing column: fall back to the persisted preference, then to 'name'.
+            if (!in_array($sort, $this->sort_cols, true)) {
+                $sort = $_SESSION['roundav_sort_col'] ?? 'name';
+                if (!in_array($sort, $this->sort_cols, true)) {
+                    $sort = 'name';
+                }
+                $reverse = strtoupper($_SESSION['roundav_sort_order'] ?? 'ASC') === 'DESC';
+            }
+
+            $ranks = $this->name_ranks(array_column($files, 'name'));
+
+            // uasort: keys must survive, they are the row ids used by file_list_row() and by
+            // file_list_response's data.filename (roundav.js).
+            uasort($files, function ($a, $b) use ($sort, $reverse, $ranks) {
+                if ($sort === 'name') {
+                    $r = $ranks[$a['name']] <=> $ranks[$b['name']];
+                    return $reverse ? -$r : $r;
+                }
+
+                // 'size' | 'mtime' are both ?int and are never formatted server-side,
+                // so a plain numeric compare is correct. null => 0.
+                $r = ($a[$sort] ?? 0) <=> ($b[$sort] ?? 0);
+
+                // Equal sizes / timestamps are common; tie-break by name, always ascending.
+                if ($r === 0) {
+                    return $ranks[$a['name']] <=> $ranks[$b['name']];
+                }
+
+                return $reverse ? -$r : $r;
+            });
 
             $result['result'] = $files;
         }

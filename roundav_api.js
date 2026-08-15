@@ -277,30 +277,28 @@ function roundav_api()
         return path.join(this.env.directory_separator);
     };
 
-    // compare two sortable objects
+    // compare two sortable objects (used by the search / collection merge path)
     this.sort_compare = function (data1, data2)
     {
-        var key = this.env.sort_col || 'name';
+        // Approximates the server side, which orders names with Roundcube's own
+        // rcube_imap::sort_folder_comparator() — locale-aware and case-sensitive.
+        function by_name(a, b) {
+            return String(a.name || '').localeCompare(String(b.name || ''));
+        }
 
-        if (key == 'mtime') { key = 'modified'; }
+        var key = this.env.sort_col || 'name', r;
 
-        data1 = data1[key];
-        data2 = data2[key];
+        if (key == 'size' || key == 'mtime') {
+            // NOTE: the payload key really is 'mtime' (roundav_files_engine.php);
+            // the old 'modified' remap produced NaN and broke the merge ordering.
+            r = (data1[key] || 0) - (data2[key] || 0);
+            if (r) { return this.env.sort_reverse ? -r : r; }
+            return by_name(data1, data2); // tie-break, always ascending — matches PHP
+        }
 
-        if (key == 'size' || key == 'modified')
-        // numeric comparison
-        { return this.env.sort_reverse ? data2 - data1 : data1 - data2; }
+        r = by_name(data1, data2);
 
-        // use Array.sort() for string comparison
-        var arr = [data1, data2];
-        arr.sort(function (a, b) {
-        // @TODO: use localeCompare() arguments for better results
-            return a.localeCompare(b);
-        });
-
-        if (this.env.sort_reverse) { arr.reverse(); }
-
-        return arr[0] === data2 ? 1 : -1;
+        return this.env.sort_reverse ? -r : r;
     };
 
     // Checks if specified mimetype is supported natively by the browser (return 1)
