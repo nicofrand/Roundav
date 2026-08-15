@@ -17,6 +17,9 @@ The "create a subdirectory" folder icon is ["Folder Plus"](https://www.svgrepo.c
 Install
 -------
 
+Requires Roundcube **1.7.0** or later (it relies on `rcube::insert_uploaded_file()`, added in 1.7).
+Installing through Composer enforces this automatically; copying the folder by hand does not.
+
 1. Place this plugin folder into plugins directory of Roundcube.
 1. Run `composer install --no-dev` inside this folder.
 1. Add `roundav` to `$config['plugins']` in your Roundcube config.

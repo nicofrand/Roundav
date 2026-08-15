@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ad9655fcf1108dbd9b8d87e7992d3b2d",
+    "content-hash": "65462a26ecae20b8e17d94f7f4243657",
     "packages": [
         {
             "name": "league/flysystem",
@@ -746,5 +746,5 @@
     "prefer-lowest": false,
     "platform": {},
     "platform-dev": {},
-    "plugin-api-version": "2.6.0"
+    "plugin-api-version": "2.9.0"
 }
