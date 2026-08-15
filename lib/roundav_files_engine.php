@@ -752,11 +752,6 @@ class roundav_files_engine
             die("Invalid session var!");
         }
 
-        // attachment upload action
-        if (!isset($COMPOSE['attachments']) || !is_array($COMPOSE['attachments'])) {
-            $COMPOSE['attachments'] = array();
-        }
-
         // clear all stored output properties (like scripts and env vars)
         $plugin->rc->output->reset();
 
@@ -812,8 +807,6 @@ class roundav_files_engine
 
             if ($plugin->rc->insert_uploaded_file($attachment, 'attachment_save')) {
                 $id = $attachment['id'];
-
-                unset($attachment['data'], $attachment['status'], $attachment['abort']);
 
                 if ((isset($COMPOSE['deleteicon']) && $icon = $COMPOSE['deleteicon']) && is_file($icon)) {
                     $button = html::img(array(
