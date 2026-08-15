@@ -91,8 +91,12 @@ function roundav_init()
     roundav_file_api = $.extend(new roundav_api(), new roundav_ui());
 
     roundav_file_api.set_env({
-        sort_col: 'name',
-        sort_reverse: false,
+        // Seed from the session preference exported by the PHP side, so the very first
+        // list request matches the sort indicator already drawn in the table header.
+        // The fallback matters: roundav_init() also runs in the mail task, where the
+        // files list was never rendered and these env vars are undefined.
+        sort_col: rcmail.env.sort_col || 'name',
+        sort_reverse: rcmail.env.sort_order == 'DESC',
         search_threads: rcmail.env.search_threads,
         resources_dir: rcmail.assets_path('program/resources'),
         supported_mimetypes: rcmail.env.file_mimetypes,
@@ -1344,31 +1348,6 @@ function roundav_ui()
 
         this.env.file_list = list;
         this.env.folders_loop_lock = false;
-    };
-
-    // sort files list (without API request)
-    this.file_list_sort = function (col, reverse)
-    {
-        var n, len, list = this.env.file_list,
-            table = $('#filelist'), tbody = $('<tbody>');
-
-        this.env.sort_col = col;
-        this.env.sort_reverse = reverse;
-
-        if (!list || !list.length) { return; }
-
-        // sort the list
-        list.sort(function (a, b) {
-            return roundav_file_api.sort_compare(a, b);
-        });
-
-        // add rows to the new body
-        for (n = 0, len = list.length; n < len; n++) {
-            tbody.append(list[n].row);
-        }
-
-        // replace table bodies
-        $('tbody', table).replaceWith(tbody);
     };
 
     this.file_list_row = function (file, data, index)
