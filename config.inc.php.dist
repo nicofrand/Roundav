@@ -17,3 +17,9 @@ $config['driver_webdav_username'] = null;
 
 // Override the password provided by Roundcube. Leave null to use the user's login password.
 $config['driver_webdav_password'] = null;
+
+// Override the HTTP version used by curl. See https://www.php.net/manual/en/curl.constants.php
+// Useful when the WebDAV server or a proxy in front of it misbehaves over HTTP/2.
+// Leave null to let curl negotiate.
+$config['driver_curl_http_version'] = null;
+// $config['driver_curl_http_version'] = CURL_HTTP_VERSION_1_1;

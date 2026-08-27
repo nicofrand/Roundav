@@ -47,6 +47,12 @@ class roundav_files_engine
         );
 
         $client = new Client($settings);
+
+        $curl_http_version = $plugin->rc->config->get('driver_curl_http_version');
+        if ($curl_http_version !== null) {
+            $client->addCurlSetting(CURLOPT_HTTP_VERSION, (int) $curl_http_version);
+        }
+
         $adapter = new PatchedWebDAVAdapter($client, $plugin->rc->config->get('driver_webdav_prefix'));
         $this->filesystem = new Filesystem($adapter);
     }
