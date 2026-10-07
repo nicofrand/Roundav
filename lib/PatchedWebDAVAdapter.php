@@ -45,7 +45,8 @@ class PatchedWebDAVAdapter extends WebDAVAdapter
             $directoryPath = implode('/', $directoryParts);
             $location = '/' . $this->encodePath($directoryPath) . '/'; // fix #2: added leading '/'
 
-            if ($this->directoryExists($prefixer->stripDirectoryPrefix($location))) {
+            // directoryExists() encodes the path itself: pass the plain one.
+            if ($this->directoryExists($prefixer->stripDirectoryPrefix('/' . $directoryPath . '/'))) {
                 continue;
             }
 
