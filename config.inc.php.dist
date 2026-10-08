@@ -23,3 +23,11 @@ $config['driver_webdav_password'] = null;
 // Leave null to let curl negotiate.
 $config['driver_curl_http_version'] = null;
 // $config['driver_curl_http_version'] = CURL_HTTP_VERSION_1_1;
+
+// Authentication method(s) used with the WebDAV server, as a bitmask of
+// \Sabre\DAV\Client::AUTH_BASIC, AUTH_DIGEST and AUTH_NTLM.
+// Leave null to let curl negotiate (Basic or Digest): every request is then sent once
+// without credentials and repeated after the 401.
+// Set to AUTH_BASIC (e.g. Nextcloud, ownCloud) to send the login with the first request.
+$config['driver_webdav_auth_type'] = null;
+// $config['driver_webdav_auth_type'] = \Sabre\DAV\Client::AUTH_BASIC;

@@ -47,6 +47,11 @@ class roundav_files_engine
             'password' => $plugin->rc->config->get('driver_webdav_password') ?: $plugin->rc->get_user_password(),
         );
 
+        $auth_type = $plugin->rc->config->get('driver_webdav_auth_type');
+        if ($auth_type !== null) {
+            $settings['authType'] = (int) $auth_type;
+        }
+
         $client = new Client($settings);
 
         $curl_http_version = $plugin->rc->config->get('driver_curl_http_version');
