@@ -59,8 +59,79 @@ class roundav_files_engine
             $client->addCurlSetting(CURLOPT_HTTP_VERSION, (int) $curl_http_version);
         }
 
+        if ($plugin->rc->config->get('driver_webdav_keep_session')) {
+            $this->keep_session($client, $url . "\n" . $settings['userName']);
+        }
+
         $adapter = new PatchedWebDAVAdapter($client, $plugin->rc->config->get('driver_webdav_prefix'));
         $this->filesystem = new Filesystem($adapter);
+    }
+
+    /**
+     * Keeps the WebDAV server's session across Roundcube requests: the cookies the server sets
+     * are stored in the Roundcube session and sent back with the following requests, so the
+     * server does not run a full login each time. Credentials are still sent, so an expired
+     * server session is renewed transparently.
+     *
+     * @param string $owner identifies the connection (URL + user); cookies stored for another
+     *                      connection are dropped
+     */
+    private function keep_session(Client $client, string $owner): void
+    {
+        $key = 'roundav_dav_cookies';
+
+        if (($_SESSION[$key]['owner'] ?? null) !== $owner) {
+            $_SESSION[$key] = array('owner' => $owner, 'cookies' => array());
+        }
+
+        $client->on('beforeRequest', function ($request) use ($key) {
+            $pairs = array();
+            foreach ($_SESSION[$key]['cookies'] as $name => $value) {
+                $pairs[] = $name . '=' . $value;
+            }
+
+            if (!empty($pairs)) {
+                $request->setHeader('Cookie', implode('; ', $pairs));
+            }
+        });
+
+        $client->on('afterRequest', function ($request, $response) use ($key) {
+            // Rejected credentials: start over with a fresh session next time.
+            if ($response->getStatus() === 401) {
+                $_SESSION[$key]['cookies'] = array();
+                return;
+            }
+
+            foreach ($response->getHeaderAsArray('Set-Cookie') as $line) {
+                $attributes = array_map('trim', explode(';', $line));
+                list($name, $value) = array_pad(explode('=', array_shift($attributes), 2), 2, '');
+
+                if ($name === '') {
+                    continue;
+                }
+
+                // Domain and path are ignored: the client only talks to one server.
+                $expired = $value === '' || $value === 'deleted';
+                foreach ($attributes as $attribute) {
+                    list($attrName, $attrValue) = array_pad(explode('=', $attribute, 2), 2, '');
+                    $attrName = strtolower($attrName);
+
+                    if ($attrName === 'max-age' && (int) $attrValue <= 0) {
+                        $expired = true;
+                    }
+                    else if ($attrName === 'expires' && ($time = strtotime($attrValue)) !== false && $time < time()) {
+                        $expired = true;
+                    }
+                }
+
+                if ($expired) {
+                    unset($_SESSION[$key]['cookies'][$name]);
+                }
+                else {
+                    $_SESSION[$key]['cookies'][$name] = $value;
+                }
+            }
+        });
     }
 
     /**

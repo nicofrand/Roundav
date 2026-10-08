@@ -32,6 +32,12 @@ $config['driver_curl_http_version'] = null;
 $config['driver_webdav_auth_type'] = null;
 // $config['driver_webdav_auth_type'] = \Sabre\DAV\Client::AUTH_BASIC;
 
+// Keep the WebDAV server's session between requests: the cookies it sets are stored in the
+// Roundcube session and sent back with the next requests, so the server does not run a full
+// login each time (on Nextcloud, ~0.5 s -> ~0.1 s per request). Credentials are still sent,
+// so an expired server session is renewed transparently.
+$config['driver_webdav_keep_session'] = false;
+
 // Columns of the file list, among 'name', 'size' and 'mtime' (modification date).
 // 'name' is always shown. Default ['name']: the name only.
 $config['roundav_list_cols'] = ['name'];
