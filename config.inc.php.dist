@@ -31,3 +31,13 @@ $config['driver_curl_http_version'] = null;
 // Set to AUTH_BASIC (e.g. Nextcloud, ownCloud) to send the login with the first request.
 $config['driver_webdav_auth_type'] = null;
 // $config['driver_webdav_auth_type'] = \Sabre\DAV\Client::AUTH_BASIC;
+
+// Columns of the file list, among 'name', 'size' and 'mtime' (modification date).
+// 'name' is always shown. Default ['name']: the name only.
+$config['roundav_list_cols'] = ['name'];
+// $config['roundav_list_cols'] = ['name', 'size', 'mtime'];
+
+// Number of folders a search in all folders scans in parallel (one request per folder).
+// Default 1: one folder at a time.
+$config['roundav_search_threads'] = 1;
+// $config['roundav_search_threads'] = 4;
