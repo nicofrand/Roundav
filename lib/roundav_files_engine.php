@@ -14,10 +14,11 @@ class roundav_files_engine
     private $sort_cols = array('name', 'mtime', 'size');
 
     /**
-     * Bump when the shape *or the ordering* of the cached folder lists changes, so sessions
-     * created by an older plugin version never serve stale (unsorted) data.
+     * Bump when the shape, the ordering *or the content* of the cached folder lists changes, so
+     * sessions created by an older plugin version never serve stale data.
+     * v3: paths are no longer double-decoded ("C++" was cached as "C  ").
      */
-    private const FOLDER_CACHE_VERSION = 2;
+    private const FOLDER_CACHE_VERSION = 3;
 
     /**
      *
@@ -891,7 +892,7 @@ class roundav_files_engine
             $attachment = array(
                 'path' => $path,
                 'size' => $this->filesystem->fileSize($file),
-                'name' => $this->get_filename_from_path(urldecode($file)),
+                'name' => $this->get_filename_from_path($file),
                 'mimetype' => $this->filesystem->mimeType($file),
                 'group' => $COMPOSE_ID,
             );
@@ -1066,7 +1067,7 @@ class roundav_files_engine
 
         $folders = $this->filesystem->listContents('/', true)
             ->filter(fn (StorageAttributes $attributes) => $attributes->isDir())
-            ->map(fn (StorageAttributes $attributes) => $filesPrefix . '/' . urldecode($attributes->path()))
+            ->map(fn (StorageAttributes $attributes) => $filesPrefix . '/' . $attributes->path())
             ->toArray();
 
         $folders = $this->sort_paths($folders);
@@ -1104,11 +1105,11 @@ class roundav_files_engine
             $children = $this->filesystem->listContents($dir, false)
                 ->filter(fn (StorageAttributes $attributes) => $attributes->isDir());
 
-            // Decode once up front: listContents() hands back URL-encoded paths but expects
-            // decoded ones (same as action_file_list()), and sorting needs the decoded names.
+            // listContents() already returns decoded paths: decoding again would turn "+" into
+            // a space and "%41" into "A".
             $decoded = array();
             foreach ($children as $child) {
-                $decoded[] = urldecode($child->path());
+                $decoded[] = $child->path();
             }
 
             // Sorting each batch is enough: the BFS is level-order (so parents still come
@@ -1198,7 +1199,7 @@ class roundav_files_engine
                     }
 
                     if (!empty($searchKeyword)) {
-                        $name = strtolower(urldecode(basename($attributes->path())));
+                        $name = strtolower(basename($attributes->path()));
 
                         if (strpos($name, $searchKeyword) === false)
                         {
@@ -1219,9 +1220,11 @@ class roundav_files_engine
             }
 
             foreach ($fsFiles as $fsfile) {
-                $key = urlencode($filesPrefix. '/'. urldecode($fsfile->path()));
+                // The key is the only encoded value: it is decoded back in action_attach_file()
+                // and by $_GET in action_file_get(). listContents() paths are already decoded.
+                $key = urlencode($filesPrefix. '/'. $fsfile->path());
                 $files[$key] = [
-                    'name' => urldecode(basename($fsfile->path())),
+                    'name' => basename($fsfile->path()),
                     'type' => $fsfile['mimeType'],
                     'size' => $fsfile['fileSize'],
                     'mtime' => $fsfile['lastModified'],
@@ -1287,7 +1290,7 @@ class roundav_files_engine
         $this->require_filesystem($result);
 
         try {
-            $folder = urldecode(rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST));
+            $folder = rcube_utils::get_input_value('folder', rcube_utils::INPUT_POST);
 
             $filesPrefix = $plugin->gettext('files');
 
@@ -1317,7 +1320,7 @@ class roundav_files_engine
             $file = ltrim(substr(rcube_utils::get_input_value('file', rcube_utils::INPUT_GET), strlen($filesPrefix)), '/');
 
             header('Content-Type: ' . $this->filesystem->mimeType($file));
-            header('Content-disposition: attachment; filename=' . $this->get_filename_from_path(urldecode($file)));
+            header('Content-disposition: attachment; filename=' . $this->get_filename_from_path($file));
             header('Content-Length: ' . $this->filesystem->fileSize($file));
             echo $this->filesystem->read($file);
         }
