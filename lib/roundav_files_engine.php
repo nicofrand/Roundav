@@ -953,7 +953,7 @@ class roundav_files_engine
      * Handler for "folders list" function
      *
      * Two modes:
-     *  - default (lazy): returns a subtree bounded to `depth` levels (default 3) below the
+     *  - default (lazy): returns a subtree bounded to `depth` levels (default: the roundav_tree_depth setting, 2) below the
      *    `folder` base (default root). Boundary folders at the deepest level get an optimistic
      *    toggle so the client can lazily request the next batch on expand.
      *  - flat=true: returns the complete recursive list of folder paths (strings). Only used by
@@ -999,7 +999,11 @@ class roundav_files_engine
         // Bounded, lazy subtree listing.
         $depth = (int) rcube_utils::get_input_value('depth', rcube_utils::INPUT_GET);
         if ($depth <= 0) {
-            $depth = 2;
+            // Levels per request; see roundav_tree_depth in config.inc.php.dist.
+            $depth = (int) $plugin->rc->config->get('roundav_tree_depth', 2);
+            if ($depth <= 0) {
+                $depth = 2;
+            }
         }
 
         $folderParam = rcube_utils::get_input_value('folder', rcube_utils::INPUT_GET);
