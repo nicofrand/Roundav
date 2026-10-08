@@ -41,3 +41,6 @@ $config['roundav_list_cols'] = ['name'];
 // Default 1: one folder at a time.
 $config['roundav_search_threads'] = 1;
 // $config['roundav_search_threads'] = 4;
+
+// Folder levels the folder tree loads per request (default 2).
+$config['roundav_tree_depth'] = 2;
